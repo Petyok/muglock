@@ -72,6 +72,14 @@ ShellRoot {
     // eye can't see), then dissolve the overlay over the live desktop.
     property real surfaceOpacity: 1
     property bool fading: false
+    // Overlays that are actually mapped on screen. The lock is dropped only
+    // once every screen's overlay is live — a timer here would be a guess
+    // that loses on slow frames and flashes the bare desktop.
+    property int overlaysLive: 0
+    onOverlaysLiveChanged: {
+        if (root.fading && !root.devMode && root.overlaysLive === Quickshell.screens.length)
+            swapFrame.restart();
+    }
 
     Variants {
         model: (root.fading && !root.devMode) ? Quickshell.screens : []
@@ -91,6 +99,10 @@ ShellRoot {
                 right: true
             }
 
+            onBackingWindowVisibleChanged: {
+                root.overlaysLive += backingWindowVisible ? 1 : -1;
+            }
+
             LockContent {
                 anchors.fill: parent
                 opacity: root.surfaceOpacity
@@ -100,43 +112,44 @@ ShellRoot {
         }
     }
 
-    SequentialAnimation {
-        id: fadeOut
-        ScriptAction {
-            script: root.fading = true
+    // One extra frame after the last overlay maps, so it has content painted
+    // before the lock surface disappears beneath it.
+    Timer {
+        id: swapFrame
+        interval: 32
+        onTriggered: {
+            sessionLock.locked = false;
+            root.scanPhase = "idle";
+            fadeAnim.restart();
         }
-        PauseAnimation {
-            duration: 60 // let the overlay map before the lock drops beneath it
-        }
-        ScriptAction {
-            script: {
-                if (!root.devMode)
-                    sessionLock.locked = false;
-                root.scanPhase = "idle";
-            }
-        }
-        NumberAnimation {
-            target: root
-            property: "surfaceOpacity"
-            to: 0
-            duration: 800
-            easing.type: Easing.OutCubic
-        }
-        ScriptAction {
-            script: {
-                root.fading = false;
-                root.surfaceOpacity = 1; // ready for the next lock
-            }
+    }
+
+    NumberAnimation {
+        id: fadeAnim
+        target: root
+        property: "surfaceOpacity"
+        to: 0
+        duration: 800
+        easing.type: Easing.OutCubic
+        onStopped: {
+            root.fading = false;
+            root.surfaceOpacity = 1; // ready for the next lock
         }
     }
 
     // The ONLY place that starts dropping the lock. Reachable from the
     // post-success timer and from PAM success, nowhere else.
     function doUnlock(): void {
-        if (fadeOut.running)
+        if (root.fading)
             return;
         scanner.abort(); // releases the camera right away, before the fade
-        fadeOut.start();
+        root.fading = true;
+        if (root.devMode) {
+            // No session lock to hand off in dev mode — dissolve the window content.
+            root.scanPhase = "idle";
+            fadeAnim.restart();
+        }
+        // Real mode continues in onOverlaysLiveChanged once overlays are mapped.
     }
 
     WlSessionLock {
@@ -180,7 +193,8 @@ ShellRoot {
         target: "muglock"
 
         function lock(): void {
-            fadeOut.stop(); // a lock during the dissolve wins over the unlock
+            swapFrame.stop(); // a lock during the dissolve wins over the unlock
+            fadeAnim.stop(); // onStopped resets fading + opacity
             root.fading = false;
             root.surfaceOpacity = 1;
             if (!root.devMode)
