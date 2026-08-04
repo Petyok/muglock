@@ -72,6 +72,10 @@ ShellRoot {
     // eye can't see), then dissolve the overlay over the live desktop.
     property real surfaceOpacity: 1
     property bool fading: false
+    // Overlays are mapped for the whole locked period, hidden beneath the
+    // session-lock surface. By unlock time they are long painted, so the
+    // handoff never races the compositor — no timing heuristics involved.
+    property bool overlayArmed: false
     // Overlays that are actually mapped on screen. The lock is dropped only
     // once every screen's overlay is live — a timer here would be a guess
     // that loses on slow frames and flashes the bare desktop.
@@ -82,7 +86,7 @@ ShellRoot {
     }
 
     Variants {
-        model: (root.fading && !root.devMode) ? Quickshell.screens : []
+        model: ((root.overlayArmed || root.fading) && !root.devMode) ? Quickshell.screens : []
 
         PanelWindow {
             required property var modelData
@@ -111,7 +115,9 @@ ShellRoot {
             LockContent {
                 anchors.fill: parent
                 opacity: root.surfaceOpacity
-                scanPhase: "success" // freeze the goodbye frame
+                // Mirrors the real lock screen while hidden beneath it, then
+                // freezes on the goodbye frame for the dissolve.
+                scanPhase: root.fading ? "success" : root.scanPhase
                 scanUser: scanner.user
             }
         }
@@ -165,6 +171,7 @@ ShellRoot {
         easing.type: Easing.OutCubic
         onStopped: {
             root.fading = false;
+            root.overlayArmed = false;
             root.surfaceOpacity = 1; // ready for the next lock
         }
     }
@@ -179,10 +186,6 @@ ShellRoot {
             return;
         }
         scanner.abort(); // releases the camera right away, before the fade
-        // Recount mapped overlays every cycle: a destroyed overlay is not
-        // guaranteed a farewell backingWindowVisible signal, and a stale
-        // count from the previous unlock would stall the handoff forever.
-        root.overlaysLive = 0;
         root.fading = true;
         if (root.devMode) {
             // No session lock to hand off in dev mode — dissolve the window content.
@@ -190,8 +193,11 @@ ShellRoot {
             fadeAnim.restart();
         } else {
             fadeWatchdog.restart();
+            if (root.overlaysLive >= Quickshell.screens.length)
+                swapFrame.restart(); // armed since lock() — already painted
+            // else: onOverlaysLiveChanged completes the handoff once mapped
+            // (cold-start edge), and the watchdog covers everything else.
         }
-        // Real mode continues in onOverlaysLiveChanged once overlays are mapped.
     }
 
     WlSessionLock {
@@ -236,10 +242,12 @@ ShellRoot {
 
         function lock(): void {
             swapFrame.stop(); // a lock during the dissolve wins over the unlock
-            fadeAnim.stop(); // onStopped resets fading + opacity
+            fadeAnim.stop(); // onStopped resets fading + opacity + armed
             fadeWatchdog.stop();
             root.fading = false;
             root.surfaceOpacity = 1;
+            root.overlaysLive = 0; // recount: destroys send no farewell signal
+            root.overlayArmed = true; // map overlays now, beneath the lock
             if (!root.devMode)
                 sessionLock.locked = true;
             root.beginScan();
