@@ -39,7 +39,7 @@ muglock never touches `/etc/pam.d/*`. The only privileged file it writes is
 `/etc/sudoers.d/muglock`, containing exactly one command:
 
 ```
-<you> ALL=(root) NOPASSWD: /usr/bin/timeout --signal=KILL 12 /usr/bin/howdy compare <you>
+<you> ALL=(root) NOPASSWD: /usr/bin/timeout --signal=KILL 12 /usr/bin/python3 /usr/lib/security/howdy/compare.py <you>
 ```
 
 validated with `visudo -cf` before installation. `timeout` is part of the granted
@@ -83,7 +83,7 @@ drop-in, and *prints* (never auto-edits) the remaining manual steps.
 
 ```bash
 sudo howdy add
-sudo -n howdy compare "$USER"   # must exit 0 with no password prompt
+sudo -n /usr/bin/timeout --signal=KILL 12 /usr/bin/python3 /usr/lib/security/howdy/compare.py "$USER"   # must exit 0 with no password prompt
 ```
 
 ## hypridle integration
@@ -117,7 +117,7 @@ zero privileges and no risk of locking yourself out:
 
 | Variable | Values | Effect |
 | --- | --- | --- |
-| `MUGLOCK_MOCK` | `ok`, `fail`, `slow` | Replaces `howdy compare` with `scripts/howdy-stub.sh`: match after 1.2 s / no match after 1.5 s / 15 s hang to exercise the 10 s timeout. **Only honoured together with `MUGLOCK_DEV=1`** — otherwise a stray `MUGLOCK_MOCK` in your real session would unlock the screen with no camera involved |
+| `MUGLOCK_MOCK` | `ok`, `fail`, `slow` | Replaces the howdy compare.py call with `scripts/howdy-stub.sh`: match after 1.2 s / no match after 1.5 s / 15 s hang to exercise the 10 s timeout. **Only honoured together with `MUGLOCK_DEV=1`** — otherwise a stray `MUGLOCK_MOCK` in your real session would unlock the screen with no camera involved |
 | `MUGLOCK_DEV` | `1` | Renders the lockscreen in an ordinary floating window instead of engaging the session lock, and unlocks `MUGLOCK_MOCK` |
 
 ```bash

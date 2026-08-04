@@ -1,4 +1,4 @@
-// Face recognition backend: runs `howdy compare` (or the mock stub) and reports
+// Face recognition backend: runs howdy's compare.py (or the mock stub) and reports
 // the outcome. Logic only — no visuals, no unlock decisions. The caller owns
 // both: it drives FacePlaque from the signals and decides when to unlock.
 //
@@ -37,7 +37,7 @@ Item {
         root._aborted = false;
         proc.command = root._mock
             ? ["bash", Quickshell.shellPath("../scripts/howdy-stub.sh")]
-            : ["sudo", "-n", "/usr/bin/timeout", "--signal=KILL", "12", "/usr/bin/howdy", "compare", root.user];
+            : ["sudo", "-n", "/usr/bin/timeout", "--signal=KILL", "12", "/usr/bin/python3", "/usr/lib/security/howdy/compare.py", root.user];
         proc.running = true;
         timeout.restart();
     }
