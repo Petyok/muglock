@@ -23,7 +23,18 @@ ShellRoot {
     // once per screen, so each LockContent binds to this rather than being
     // reached into from here.
     property string scanPhase: "idle" // "idle" | "scanning" | "success" | "failed"
-    onScanPhaseChanged: console.log("MUGLOCK: phase", root.scanPhase)
+    onScanPhaseChanged: {
+        console.log("MUGLOCK: phase", root.scanPhase);
+        // Chirp lives here, not in FacePlaque: the plaque is instantiated once per
+        // screen, so N monitors would mean N overlapping chirps. This root is one.
+        if (root.scanPhase === "success" && !chirp.running)
+            chirp.running = true;
+    }
+
+    Process {
+        id: chirp
+        command: ["paplay", Quickshell.shellPath("../assets/chirp.ogg")]
+    }
 
     FaceScanner { id: scanner }
 
@@ -48,6 +59,8 @@ ShellRoot {
     }
 
     function beginScan(): void {
+        if (scanner.scanning) // start() would no-op; don't claim "scanning" twice
+            return;
         root.scanPhase = "scanning";
         scanner.start();
     }
