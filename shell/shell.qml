@@ -54,6 +54,27 @@ ShellRoot {
         command: ["paplay", Quickshell.shellPath("../assets/chirp.ogg")]
     }
 
+    // Liveness trace, only while the screen is actually locked. If muglock ever
+    // appears stuck again, this line decides between two very different
+    // diagnoses without needing a witness: still ticking means the event loop is
+    // alive and some state machine is wrong; stopped means the process (or the
+    // compositor) froze. A lock screen with an HH:mm clock offers no other way
+    // to tell, and "did the clock move" is not a question a user can answer.
+    // Bounded on purpose: it ticks only during the phases that are supposed to
+    // last seconds (a scan, the goodbye frame, the dissolve), never while the
+    // screen simply sits locked or after a failed scan. A wedge always presents
+    // as one of those transient phases stuck, so this costs a handful of lines
+    // per lock instead of growing all night.
+    Timer {
+        interval: 2000
+        repeat: true
+        running: (sessionLock.locked || root.fading)
+            && (root.scanPhase === "scanning" || root.scanPhase === "success" || root.fading)
+        onTriggered: console.log("MUGLOCK: alive phase=" + root.scanPhase
+            + " scanning=" + scanner.scanning + " fading=" + root.fading
+            + " locked=" + sessionLock.locked + " overlays=" + root.overlaysLive)
+    }
+
     FaceScanner { id: scanner }
 
     Connections {
