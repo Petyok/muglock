@@ -29,8 +29,9 @@ pid=""
 grep -q "MUGLOCK: phase scanning" "$log" || { echo "FAIL: no scan start"; cat "$log"; exit 1; }
 grep -q "MUGLOCK: phase success" "$log"  || { echo "FAIL: no success transition"; cat "$log"; exit 1; }
 
-# Second scenario: a failing scan must auto-retry exactly maxScanAttempts (3)
-# times, shake between attempts, and only then settle on the failed phase.
+# Second scenario: a failing scan settles on the failed phase after ONE
+# process run — retries are howdy's internal frame loop, never a process
+# restart (each restart would pay python+camera startup with the camera off).
 log2=$(mktemp)
 
 env MUGLOCK_DEV=1 MUGLOCK_MOCK=fail qs -p shell >"$log2" 2>&1 &
@@ -38,12 +39,12 @@ pid2=$!
 sleep 2
 qs -p shell ipc call muglock wake >>"$log2" 2>&1 \
     || { echo "FAIL: ipc call rejected (fail run)"; cat "$log2"; exit 1; }
-sleep 9
+sleep 4
 
 kill "$pid2"; wait "$pid2" 2>/dev/null || true
 pid2=""
 
-grep -q "MUGLOCK: attempt 3" "$log2" || { echo "FAIL: no third auto-attempt"; cat "$log2"; exit 1; }
-grep -q "MUGLOCK: attempt 4" "$log2" && { echo "FAIL: retried past the cap"; cat "$log2"; exit 1; }
 grep -q "MUGLOCK: phase failed" "$log2" || { echo "FAIL: no terminal failed phase"; cat "$log2"; exit 1; }
+[ "$(grep -c "MUGLOCK: phase scanning" "$log2")" -eq 1 ] \
+    || { echo "FAIL: scan process was restarted"; cat "$log2"; exit 1; }
 echo PASS
