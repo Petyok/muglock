@@ -23,6 +23,9 @@ ShellRoot {
     // once per screen, so each LockContent binds to this rather than being
     // reached into from here.
     property string scanPhase: "idle" // "idle" | "scanning" | "success" | "failed"
+    // Why the last scan failed, so the plaque can say what actually happened
+    // instead of blaming the user's face for a dead camera.
+    property string scanReason: ""
     // "Still looking" feedback: howdy already re-evaluates every frame inside
     // one process (its internal video timeout IS the retry loop, with the
     // camera held open), so restarting the process for retries only pays the
@@ -62,6 +65,8 @@ ShellRoot {
         }
 
         function onFailed(reason) {
+            console.log("MUGLOCK: scan failed:", reason);
+            root.scanReason = reason;
             root.scanPhase = "failed";
         }
     }
@@ -76,6 +81,7 @@ ShellRoot {
     function beginScan(): void {
         if (scanner.scanning) // start() would no-op; don't claim "scanning" twice
             return;
+        root.scanReason = "";
         root.scanPhase = "scanning";
         scanner.start();
     }
@@ -134,6 +140,7 @@ ShellRoot {
                 // freezes on the goodbye frame for the dissolve.
                 scanPhase: root.fading ? "success" : root.scanPhase
                 scanShake: root.shakeSeq
+                scanReason: root.scanReason
                 scanUser: scanner.user
             }
         }
@@ -233,6 +240,7 @@ ShellRoot {
                 anchors.fill: parent
                 scanPhase: root.scanPhase
                 scanShake: root.shakeSeq
+                scanReason: root.scanReason
                 scanUser: scanner.user
                 onUnlockRequested: root.doUnlock() // PAM said yes
                 onKeyPressed: if (root.scanPhase === "failed") root.beginScan()
@@ -253,6 +261,7 @@ ShellRoot {
                 opacity: root.surfaceOpacity
                 scanPhase: root.scanPhase
                 scanShake: root.shakeSeq
+                scanReason: root.scanReason
                 scanUser: scanner.user
                 onUnlockRequested: root.doUnlock()
                 onKeyPressed: if (root.scanPhase === "failed") root.beginScan()

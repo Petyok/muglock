@@ -10,6 +10,16 @@ Item {
     // "idle" | "scanning" | "success" | "failed"
     property string phase: "idle"
     property string user: Quickshell.env("USER") || ""
+    // Failure class from FaceScanner: "no-match" | "too-dark" | "unavailable" |
+    // "timeout". Only read while phase is "failed".
+    property string reason: ""
+    // Say what actually happened. "Didn't recognize you" for a camera that never
+    // opened would send someone looking for better lighting for a dead device.
+    readonly property string failedText:
+        root.reason === "too-dark" ? "Too dark to see you — type your password"
+        : root.reason === "unavailable" ? "Camera unavailable — type your password"
+        : root.reason === "timeout" ? "Face scan timed out — type your password"
+        : "Didn't recognize you — type your password, or press Enter to retry"
 
     implicitWidth: 340
     implicitHeight: 80
@@ -186,7 +196,7 @@ Item {
             font.pixelSize: 15
             text: root.phase === "scanning" ? "Looking for you…"
                 : root.phase === "success" ? "Welcome back, " + root.user + "!"
-                : root.phase === "failed" ? "Didn't recognize you — type your password, or press Enter to retry"
+                : root.phase === "failed" ? root.failedText
                 : ""
             color: root.phase === "success" ? Theme.success
                 : root.phase === "failed" ? Theme.dim

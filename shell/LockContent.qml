@@ -24,6 +24,7 @@ Item {
     property alias scanPhase: plaque.phase
     property alias scanUser: plaque.user
     property alias scanShake: plaque.shakeSeq
+    property alias scanReason: plaque.reason
 
     focus: true
     Component.onCompleted: field.forceActiveFocus()

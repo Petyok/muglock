@@ -26,8 +26,15 @@ password.
 - Animated FaceID plaque: pulsing face icon + scanline while scanning, spring
   checkmark and a chirp on success, a calm hint on failure.
 - Password fallback via PAM (`PamContext`) — active in every state, always.
-- Camera used only on wake, hard-capped by `timeout(1)` (10 s in the UI, SIGKILL
-  at 12 s), then released.
+- Honest failure messages: "didn't recognize you" is only ever shown when howdy
+  really looked and did not match. A busy camera, a dark room or a broken config
+  each say so, because sending someone to fix the lighting for a dead device is
+  worse than saying nothing.
+- Camera used only on wake, then released. The stop ladder runs inside-out so
+  the stage that can actually reach the camera holder always acts first: howdy's
+  own scan window (9 s) → `timeout(1)` SIGTERM (11 s) → its SIGKILL escalation
+  (13 s) → the UI's last-resort cap (14 s). SIGTERM lets OpenCV release the
+  device; a SIGKILL mid-capture is what leaves a webcam driver wedged.
 - Rescan on demand: Enter on an empty password field, a click on the plaque,
   or an IPC `wake` (lid open). Typing never restarts the camera.
 - Keyboard layout chip in the password pill — loud when it's not EN, because a
@@ -47,7 +54,7 @@ muglock never touches `/etc/pam.d/*`. The only privileged file it writes is
 `/etc/sudoers.d/muglock`, containing exactly one command:
 
 ```
-<you> ALL=(root) NOPASSWD: /usr/bin/timeout --signal=KILL 12 /usr/bin/python3 /usr/lib/security/howdy/compare.py <you>
+<you> ALL=(root) NOPASSWD: /usr/bin/timeout --signal=TERM --kill-after=2 11 /usr/bin/python3 /usr/lib/security/howdy/compare.py <you>
 ```
 
 validated with `visudo -cf` before installation. `timeout` is part of the granted
@@ -94,7 +101,7 @@ drop-in, and *prints* (never auto-edits) the remaining manual steps.
 
 ```bash
 sudo howdy add
-sudo -n /usr/bin/timeout --signal=KILL 12 /usr/bin/python3 /usr/lib/security/howdy/compare.py "$USER"   # must exit 0 with no password prompt
+sudo -n /usr/bin/timeout --signal=TERM --kill-after=2 11 /usr/bin/python3 /usr/lib/security/howdy/compare.py "$USER"   # must exit 0 with no password prompt
 ```
 
 ## hypridle integration
@@ -128,7 +135,7 @@ zero privileges and no risk of locking yourself out:
 
 | Variable | Values | Effect |
 | --- | --- | --- |
-| `MUGLOCK_MOCK` | `ok`, `fail`, `slow` | Replaces the howdy compare.py call with `scripts/howdy-stub.sh`: match after 1.2 s / no match after 1.5 s / 15 s hang to exercise the 10 s timeout. **Only honoured together with `MUGLOCK_DEV=1`** — otherwise a stray `MUGLOCK_MOCK` in your real session would unlock the screen with no camera involved |
+| `MUGLOCK_MOCK` | `ok`, `fail`, `busy`, `dark`, `slow` | Replaces the howdy compare.py call with `scripts/howdy-stub.sh`, which exits with *howdy's own* codes: match (0) / no match (11) / camera unavailable (1) / all frames too dark (13) / a hang that outlives the UI cap. **Only honoured together with `MUGLOCK_DEV=1`** — otherwise a stray `MUGLOCK_MOCK` in your real session would unlock the screen with no camera involved |
 | `MUGLOCK_DEV` | `1` | Renders the lockscreen in an ordinary floating window instead of engaging the session lock, and unlocks `MUGLOCK_MOCK` |
 
 ```bash
@@ -148,7 +155,7 @@ Every unit ships a runnable check under `scripts/`:
 scripts/test-chirp.sh      # the chirp asset is a short vorbis file
 scripts/test-stub.sh       # mock backend exit codes
 scripts/test-qml-loads.sh shell/DevPreview.qml
-scripts/test-scanner.sh    # succeeded / no-match / timeout transitions
+scripts/test-scanner.sh    # every outcome: match, no-match, unavailable, too-dark, timeout
 scripts/test-ipc.sh        # lock + wake over qs ipc
 scripts/test-install.sh    # install.sh dry-run contract
 scripts/test-deb.sh        # .deb contents and PKGBUILD sanity
@@ -182,6 +189,24 @@ loginctl unlock-session   # drop the lock outright
 
 Keep `hyprlock` installed. Your password works in muglock in every state, so this
 path is for crashes only.
+
+### "Camera unavailable" and the camera LED never lights up
+
+Some webcam drivers — `facetimehd` on Apple hardware notably — are left in a
+broken state if the capturing process dies mid-frame: opening the device still
+succeeds, but no frame ever arrives, so every scan fails in a couple of seconds.
+muglock avoids causing this (SIGTERM before SIGKILL, see Features), but if
+something else on the system does it, reload the module:
+
+```bash
+sudo modprobe -r facetimehd && sudo modprobe facetimehd
+```
+
+Then confirm frames flow again — this must print `first_frame=True`:
+
+```bash
+python3 -c "import cv2; c=cv2.VideoCapture('/dev/video0'); print('first_frame=', c.read()[0]); c.release()"
+```
 
 ## Uninstall
 
