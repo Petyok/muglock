@@ -7,7 +7,9 @@ REPO=$(cd "$(dirname "$0")" && pwd)
 USER_NAME=${USER:-$(id -un)}
 CONFIG_LINK="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/muglock"
 SUDOERS_FILE=/etc/sudoers.d/muglock
-SUDOERS_LINE="$USER_NAME ALL=(root) NOPASSWD: /usr/bin/howdy compare $USER_NAME"
+# timeout(1) is inside the granted command on purpose: sudo cannot forward SIGKILL
+# to its child, so the hard cap on the camera has to be owned kernel-side.
+SUDOERS_LINE="$USER_NAME ALL=(root) NOPASSWD: /usr/bin/timeout --signal=KILL 12 /usr/bin/howdy compare $USER_NAME"
 
 DRY_RUN=0
 case "${1:-}" in
@@ -81,20 +83,18 @@ else
     visudo -cf "$tmp" >/dev/null || { echo "ABORT: visudo rejected the sudoers line" >&2; exit 1; }
     say "visudo -cf: OK"
   else
-    say "WARNING: visudo not found — cannot validate, skipping sudoers install"
-    tmp=""
+    echo "ABORT: visudo not found — install sudo (it ships visudo) and re-run" >&2
+    exit 1
   fi
-  if [ -n "$tmp" ]; then
-    run sudo install -o root -g root -m 0440 "$tmp" "$SUDOERS_FILE"
-  fi
+  run sudo install -o root -g root -m 0440 "$tmp" "$SUDOERS_FILE"
 fi
 
 step "5. Manual steps left for you (nothing is auto-edited)"
 say "Enroll your face:"
 say "  sudo howdy add"
-say "Add these two lines to ~/.config/hypridle.conf inside your listener/general block:"
-say '  on-lock = qs -c muglock ipc call muglock lock'
-say '  on-resume = qs -c muglock ipc call muglock wake'
+say "Add these two lines to the general{} block of ~/.config/hypridle.conf:"
+say '  lock_cmd = qs -c muglock ipc call muglock lock'
+say '  after_sleep_cmd = qs -c muglock ipc call muglock wake'
 say "Then reload hypridle and try: qs -c muglock ipc call muglock lock"
 
 [ "$DRY_RUN" -eq 1 ] && say $'\n(dry run — nothing above was executed)'

@@ -23,7 +23,8 @@ password.
 - Animated FaceID plaque: pulsing face icon + scanline while scanning, spring
   checkmark and a chirp on success, a calm hint on failure.
 - Password fallback via PAM (`PamContext`) — active in every state, always.
-- Camera used only on wake, hard-capped at 10 s, then released.
+- Camera used only on wake, hard-capped by `timeout(1)` (10 s in the UI, SIGKILL
+  at 12 s), then released.
 - Face scan retries on any keypress after a failure.
 - hypridle integration over `qs ipc` — two lines of config.
 - Mock and dev modes: full development with no root, no camera, no locking.
@@ -38,10 +39,12 @@ muglock never touches `/etc/pam.d/*`. The only privileged file it writes is
 `/etc/sudoers.d/muglock`, containing exactly one command:
 
 ```
-<you> ALL=(root) NOPASSWD: /usr/bin/howdy compare <you>
+<you> ALL=(root) NOPASSWD: /usr/bin/timeout --signal=KILL 12 /usr/bin/howdy compare <you>
 ```
 
-validated with `visudo -cf` before installation.
+validated with `visudo -cf` before installation. `timeout` is part of the granted
+command because `sudo` cannot forward a signal to its child — without it a hung
+`howdy` would keep the camera after muglock gave up on it.
 
 ## Install
 
@@ -89,10 +92,14 @@ Add to `~/.config/hypridle.conf`:
 
 ```ini
 general {
-    on-lock   = qs -c muglock ipc call muglock lock
-    on-resume = qs -c muglock ipc call muglock wake
+    lock_cmd        = qs -c muglock ipc call muglock lock
+    after_sleep_cmd = qs -c muglock ipc call muglock wake
 }
 ```
+
+`lock_cmd` runs on every `loginctl lock-session` (so also on your idle listener's
+`on-timeout`); `after_sleep_cmd` re-scans your face when the machine comes back
+from suspend.
 
 The IPC contract:
 
@@ -110,8 +117,8 @@ zero privileges and no risk of locking yourself out:
 
 | Variable | Values | Effect |
 | --- | --- | --- |
-| `MUGLOCK_MOCK` | `ok`, `fail`, `slow` | Replaces `howdy compare` with `scripts/howdy-stub.sh`: match after 1.2 s / no match after 1.5 s / 15 s hang to exercise the 10 s timeout |
-| `MUGLOCK_DEV` | `1` | Renders the lockscreen in an ordinary floating window instead of engaging the session lock |
+| `MUGLOCK_MOCK` | `ok`, `fail`, `slow` | Replaces `howdy compare` with `scripts/howdy-stub.sh`: match after 1.2 s / no match after 1.5 s / 15 s hang to exercise the 10 s timeout. **Only honoured together with `MUGLOCK_DEV=1`** — otherwise a stray `MUGLOCK_MOCK` in your real session would unlock the screen with no camera involved |
+| `MUGLOCK_DEV` | `1` | Renders the lockscreen in an ordinary floating window instead of engaging the session lock, and unlocks `MUGLOCK_MOCK` |
 
 ```bash
 # The full lockscreen in a window, faking a successful scan:
@@ -121,7 +128,7 @@ qs -p shell ipc call muglock wake
 # Individual components:
 qs -p shell/DevPreview.qml    # background, clock, date, password pill
 qs -p shell/DevPlaque.qml     # plaque animations cycling through all phases
-qs -p shell/DevScanner.qml    # scanner logic, prints transitions to stdout
+MUGLOCK_DEV=1 MUGLOCK_MOCK=ok qs -p shell/DevScanner.qml   # scanner logic, prints transitions
 ```
 
 Every unit ships a runnable check under `scripts/`:
@@ -158,7 +165,7 @@ path is for crashes only.
 ```bash
 rm ~/.config/quickshell/muglock
 sudo rm /etc/sudoers.d/muglock
-# and remove the two on-lock/on-resume lines from ~/.config/hypridle.conf
+# and remove the two muglock lines from general{} in ~/.config/hypridle.conf
 paru -R muglock        # or: sudo dpkg -r muglock
 ```
 

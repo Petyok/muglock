@@ -22,6 +22,7 @@ package() {
   # install.sh resolves the repo from its own dirname, so it must sit next to shell/;
   # /usr/bin/muglock-install is a thin exec wrapper (a symlink would leave $0 in /usr/bin).
   install -Dm755 install.sh "$pkgdir/usr/share/$pkgname/install.sh"
+  install -dm755 "$pkgdir/usr/bin"
   printf '#!/bin/sh\nexec /usr/share/%s/install.sh "$@"\n' "$pkgname" \
     >"$pkgdir/usr/bin/$pkgname-install"
   chmod 755 "$pkgdir/usr/bin/$pkgname-install"

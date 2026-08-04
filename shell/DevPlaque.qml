@@ -1,5 +1,6 @@
 // Dev harness for FacePlaque: cycles the phases forever in a normal window so
-// the animations (pulse, scanline, spring, chirp) can be eyeballed and heard.
+// the animations (pulse, scanline, spring) can be eyeballed. No chirp here — that
+// one belongs to shell.qml so it stays one sound per success, not one per screen.
 // Run: qs -p shell/DevPlaque.qml
 import QtQuick
 import Quickshell

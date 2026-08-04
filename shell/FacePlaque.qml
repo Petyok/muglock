@@ -3,7 +3,6 @@
 // shell.qml, so several plaques (one per screen) can bind to the same phase.
 import QtQuick
 import Quickshell
-import Quickshell.Io
 
 Item {
     id: root
@@ -19,20 +18,9 @@ Item {
     opacity: root.phase === "idle" ? 0.0 : 1.0
     Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
-    onPhaseChanged: {
-        if (root.phase === "success") {
-            springIn.restart();
-            // Retriggering while the previous chirp is still playing would fail;
-            // one chirp per success is the point anyway.
-            if (!chirp.running)
-                chirp.running = true;
-        }
-    }
-
-    Process {
-        id: chirp
-        command: ["paplay", Quickshell.shellPath("../assets/chirp.ogg")]
-    }
+    // Visuals only — the success chirp is owned by shell.qml, one per session
+    // instead of one per screen.
+    onPhaseChanged: if (root.phase === "success") springIn.restart()
 
     Row {
         anchors.centerIn: parent
