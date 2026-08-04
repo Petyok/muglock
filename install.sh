@@ -115,6 +115,8 @@ say "  sudo howdy add"
 say "Add these two lines to the general{} block of ~/.config/hypridle.conf:"
 say '  lock_cmd = qs -p ~/.config/quickshell/muglock ipc call muglock lock'
 say '  after_sleep_cmd = qs -p ~/.config/quickshell/muglock ipc call muglock wake'
+say "Add this line to ~/.config/hypr/hyprland.conf (smooth unlock fade needs it):"
+say '  layerrule = no_anim on, match:namespace ^muglock-fade$'
 say "Then reload hypridle and try: qs -p ~/.config/quickshell/muglock ipc call muglock lock"
 
 [ "$DRY_RUN" -eq 1 ] && say $'\n(dry run — nothing above was executed)'

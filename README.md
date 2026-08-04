@@ -143,6 +143,16 @@ scripts/test-install.sh    # install.sh dry-run contract
 scripts/test-deb.sh        # .deb contents and PKGBUILD sanity
 ```
 
+## Hyprland: smooth unlock fade
+
+Hyprland animates layer surfaces with its own fade by default, which fights
+the unlock dissolve (the overlay is still fading in while the lock is already
+gone). Exempt the muglock overlay:
+
+```
+layerrule = no_anim on, match:namespace ^muglock-fade$
+```
+
 ## Recovery
 
 If quickshell crashes while the session is locked, Hyprland keeps the session
