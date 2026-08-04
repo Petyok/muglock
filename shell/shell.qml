@@ -23,6 +23,13 @@ ShellRoot {
     // once per screen, so each LockContent binds to this rather than being
     // reached into from here.
     property string scanPhase: "idle" // "idle" | "scanning" | "success" | "failed"
+    // Auto-retry chain: a failed scan shakes the plaque and tries again, up
+    // to maxScanAttempts per gesture (lock, wake, Enter, plaque click).
+    // shakeSeq is a declarative "shake now" pulse — per-screen plaques bind to
+    // it just like scanPhase; root never reaches into surface instances.
+    readonly property int maxScanAttempts: 3
+    property int scanAttempts: 0
+    property int shakeSeq: 0
     onScanPhaseChanged: {
         console.log("MUGLOCK: phase", root.scanPhase);
         // Chirp lives here, not in FacePlaque: the plaque is instantiated once per
@@ -47,7 +54,24 @@ ShellRoot {
         }
 
         function onFailed(reason) {
-            root.scanPhase = "failed";
+            if (root.scanAttempts < root.maxScanAttempts && (sessionLock.locked || root.devMode)) {
+                root.shakeSeq++; // "not yet — one more look"
+                retryDelay.restart();
+            } else {
+                root.scanPhase = "failed";
+            }
+        }
+    }
+
+    // Breather between auto-attempts, so the shake reads before the camera
+    // spins up again.
+    Timer {
+        id: retryDelay
+        interval: 650
+        onTriggered: {
+            root.scanAttempts++;
+            console.log("MUGLOCK: attempt", root.scanAttempts);
+            scanner.start();
         }
     }
 
@@ -61,6 +85,9 @@ ShellRoot {
     function beginScan(): void {
         if (scanner.scanning) // start() would no-op; don't claim "scanning" twice
             return;
+        retryDelay.stop();
+        root.scanAttempts = 1; // a fresh gesture resets the auto-retry chain
+        console.log("MUGLOCK: attempt", 1);
         root.scanPhase = "scanning";
         scanner.start();
     }
@@ -118,6 +145,7 @@ ShellRoot {
                 // Mirrors the real lock screen while hidden beneath it, then
                 // freezes on the goodbye frame for the dissolve.
                 scanPhase: root.fading ? "success" : root.scanPhase
+                scanShake: root.shakeSeq
                 scanUser: scanner.user
             }
         }
@@ -155,6 +183,7 @@ ShellRoot {
         swapFrame.stop();
         fadeAnim.stop(); // onStopped resets fading + opacity
         fadeWatchdog.stop();
+        retryDelay.stop();
         root.fading = false;
         root.surfaceOpacity = 1;
         root.scanPhase = "idle";
@@ -185,6 +214,7 @@ ShellRoot {
             root.forceUnlock();
             return;
         }
+        retryDelay.stop(); // no auto-attempt may fire after an unlock
         scanner.abort(); // releases the camera right away, before the fade
         root.fading = true;
         if (root.devMode) {
@@ -211,6 +241,7 @@ ShellRoot {
             LockContent {
                 anchors.fill: parent
                 scanPhase: root.scanPhase
+                scanShake: root.shakeSeq
                 scanUser: scanner.user
                 onUnlockRequested: root.doUnlock() // PAM said yes
                 onKeyPressed: if (root.scanPhase === "failed") root.beginScan()
@@ -230,6 +261,7 @@ ShellRoot {
                 anchors.fill: parent
                 opacity: root.surfaceOpacity
                 scanPhase: root.scanPhase
+                scanShake: root.shakeSeq
                 scanUser: scanner.user
                 onUnlockRequested: root.doUnlock()
                 onKeyPressed: if (root.scanPhase === "failed") root.beginScan()

@@ -22,6 +22,19 @@ Item {
     // instead of one per screen.
     onPhaseChanged: if (root.phase === "success") springIn.restart()
 
+    // Auto-retry pulse: shell.qml bumps this counter when a scan failed but
+    // another attempt is coming — the plaque shakes its head and keeps looking.
+    property int shakeSeq: 0
+    onShakeSeqChanged: if (root.phase === "scanning") wobble.restart()
+
+    SequentialAnimation {
+        id: wobble
+        NumberAnimation { target: root; property: "rotation"; to: -5; duration: 60; easing.type: Easing.OutQuad }
+        NumberAnimation { target: root; property: "rotation"; to: 5; duration: 110; easing.type: Easing.InOutQuad }
+        NumberAnimation { target: root; property: "rotation"; to: -3; duration: 90; easing.type: Easing.InOutQuad }
+        NumberAnimation { target: root; property: "rotation"; to: 0; duration: 70; easing.type: Easing.OutQuad }
+    }
+
     Row {
         id: row
         anchors.centerIn: parent
