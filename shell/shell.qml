@@ -145,6 +145,7 @@ ShellRoot {
         id: swapFrame
         interval: 32
         onTriggered: {
+            console.log("MUGLOCK: swap -> unlock, overlaysLive=" + root.overlaysLive);
             fadeWatchdog.stop();
             sessionLock.locked = false;
             root.scanPhase = "idle";
@@ -159,6 +160,7 @@ ShellRoot {
         id: fadeWatchdog
         interval: 1500
         onTriggered: {
+            console.log("MUGLOCK: fade watchdog fired, fading=" + root.fading + " locked=" + sessionLock.locked + " overlaysLive=" + root.overlaysLive);
             if (root.fading && sessionLock.locked)
                 root.forceUnlock();
         }
@@ -168,6 +170,7 @@ ShellRoot {
     // second authenticated unlock arrives mid-dissolve — animation state must
     // never be able to hold the session hostage.
     function forceUnlock(): void {
+        console.log("MUGLOCK: forceUnlock");
         swapFrame.stop();
         fadeAnim.stop(); // onStopped resets fading + opacity
         fadeWatchdog.stop();
@@ -186,6 +189,7 @@ ShellRoot {
         duration: 800
         easing.type: Easing.OutCubic
         onStopped: {
+            console.log("MUGLOCK: fade done");
             root.fading = false;
             root.overlayArmed = false;
             root.surfaceOpacity = 1; // ready for the next lock
@@ -195,6 +199,7 @@ ShellRoot {
     // The ONLY place that starts dropping the lock. Reachable from the
     // post-success timer and from PAM success, nowhere else.
     function doUnlock(): void {
+        console.log("MUGLOCK: doUnlock fading=" + root.fading + " overlaysLive=" + root.overlaysLive + " locked=" + sessionLock.locked);
         if (root.fading) {
             // A second authenticated unlock while a dissolve is (or claims to
             // be) in flight: the user has proven who they are, let them out now.
@@ -259,6 +264,7 @@ ShellRoot {
         target: "muglock"
 
         function lock(): void {
+            console.log("MUGLOCK: ipc lock");
             swapFrame.stop(); // a lock during the dissolve wins over the unlock
             fadeAnim.stop(); // onStopped resets fading + opacity + armed
             fadeWatchdog.stop();
@@ -272,6 +278,7 @@ ShellRoot {
         }
 
         function wake(): void {
+            console.log("MUGLOCK: ipc wake, locked=" + sessionLock.locked);
             if (sessionLock.locked || root.devMode)
                 root.beginScan();
         }
