@@ -2,11 +2,14 @@
 
 **macOS-style FaceID for your Linux lockscreen**
 
-![100% vibecoded](https://img.shields.io/badge/100%25-vibecoded-ff69b4)
-![License: MIT](https://img.shields.io/badge/license-MIT-blue)
-![AUR](https://img.shields.io/aur/version/muglock)
+[![vibecoded](https://img.shields.io/badge/vibecoded-100%25-ff69b4)](#model-credits)
+[![release](https://img.shields.io/github/v/release/Petyok/muglock)](https://github.com/Petyok/muglock/releases)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Every line of code in this repo was written by Claude in dialogue with a human.
+> ⚠️ This project is 100% vibe-coded slop — see [Model credits](#model-credits)
+> for who to blame; not a single line was written by a human. It has — and will
+> keep having — stupid bugs LLMs can't see. Your password always works; use at
+> your own risk.
 
 ![demo](assets/demo.gif)
 
@@ -25,7 +28,12 @@ password.
 - Password fallback via PAM (`PamContext`) — active in every state, always.
 - Camera used only on wake, hard-capped by `timeout(1)` (10 s in the UI, SIGKILL
   at 12 s), then released.
-- Face scan retries on any keypress after a failure.
+- Rescan on demand: Enter on an empty password field, a click on the plaque,
+  or an IPC `wake` (lid open). Typing never restarts the camera.
+- Keyboard layout chip in the password pill — loud when it's not EN, because a
+  hidden-echo password in the wrong layout is how "my password stopped working".
+- Seamless unlock: the lock dissolves into the live desktop (overlay-layer
+  handoff), and the animation can never hold an authenticated unlock hostage.
 - hypridle integration over `qs ipc` — two lines of config.
 - Mock and dev modes: full development with no root, no camera, no locking.
 - Theme matching a dark-blue hyprlock rice; `JetBrainsMono Nerd Font`.
@@ -48,16 +56,19 @@ command because `sudo` cannot forward a signal to its child — without it a hun
 
 ## Install
 
-### AUR (Arch)
+### Arch
+
+Not on AUR yet — build from the repo's PKGBUILD:
 
 ```bash
-paru -S muglock   # or: yay -S muglock
+git clone https://github.com/Petyok/muglock && cd muglock
+makepkg -si
 ```
 
 ### .deb (Debian/Ubuntu)
 
 Grab `muglock_<version>_all.deb` from
-[Releases](https://github.com/petruha/muglock/releases):
+[Releases](https://github.com/Petyok/muglock/releases):
 
 ```bash
 sudo dpkg -i muglock_0.1.0_all.deb
@@ -69,7 +80,7 @@ dependencies — the postinst tells you what is missing and where to get it.
 ### From source
 
 ```bash
-git clone https://github.com/petruha/muglock
+git clone https://github.com/Petyok/muglock
 cd muglock
 ./install.sh --dry-run   # see exactly what it would do
 ./install.sh
@@ -160,6 +171,8 @@ hidden (a black screen, not your desktop) — that is the session-lock protocol
 doing its job, not muglock hanging. To get back in:
 
 1. Switch to a tty: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F3</kbd>, log in.
+   On Apple keyboards F-keys send media codes by default — hold <kbd>Fn</kbd>
+   too: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Fn</kbd>+<kbd>F3</kbd>.
 2. Then either:
 
 ```bash
@@ -180,6 +193,26 @@ paru -R muglock        # or: sudo dpkg -r muglock
 ```
 
 Nothing else was modified — no PAM files, no compositor config.
+
+## Model credits
+
+Built end-to-end by Claude models in one long dialogue with a human — spec,
+plan, code, tests, reviews, this README, and the release. Models with commits,
+reviews, or blocked merges to their name, in order of appearance:
+
+- Fable 5 — orchestration, design, integration debugging, docs
+- Sonnet 5 — adversarial plan validation, sanity and seam checks
+- Opus 5 — parallel builders, integration, code review, fix rounds
+
+The human contributed the idea, the taste, the face, and the swearing.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
