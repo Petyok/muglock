@@ -9,7 +9,7 @@ CONFIG_LINK="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/muglock"
 SUDOERS_FILE=/etc/sudoers.d/muglock
 # timeout(1) is inside the granted command on purpose: sudo cannot forward SIGKILL
 # to its child, so the hard cap on the camera has to be owned kernel-side.
-SUDOERS_LINE="$USER_NAME ALL=(root) NOPASSWD: /usr/bin/timeout --signal=KILL 12 /usr/bin/python3 /usr/lib/security/howdy/compare.py $USER_NAME"
+SUDOERS_LINE="$USER_NAME ALL=(root) NOPASSWD: /usr/bin/timeout --signal=TERM --kill-after=2 11 /usr/bin/python3 /usr/lib/security/howdy/compare.py $USER_NAME"
 
 DRY_RUN=0
 case "${1:-}" in

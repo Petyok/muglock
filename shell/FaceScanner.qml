@@ -2,12 +2,22 @@
 // the outcome. Logic only — no visuals, no unlock decisions. The caller owns
 // both: it drives FacePlaque from the signals and decides when to unlock.
 //
-// The camera is held only while the process runs. The hard cap is owned by
-// timeout(1) inside the sudo command (12 s, SIGKILL): sudo cannot forward a
-// signal to its child, so proc.signal() would only ever kill the sudo parent and
-// leave howdy on the camera. The Timer below is the UI cap (timeoutMs, 10 s) — it
-// reports "timeout" and best-effort stops the process, two seconds before the
-// kernel-side kill it cannot lose a race with.
+// TEARDOWN, and why every detail of it matters (learned the hard way — a wedged
+// facetimehd that "does not even turn on" until the module is reloaded):
+//
+//   * The camera is held by python3, a GRANDchild (qs -> sudo -> timeout ->
+//     python3). proc.signal() can only reach sudo. SIGKILL is not relayed by
+//     anyone, so killing sudo with 9 orphans the process that holds the camera.
+//   * SIGTERM *is* relayed by both sudo and timeout(1), and Python runs its
+//     cleanup on it, so OpenCV releases the device. SIGKILL cannot be handled:
+//     the device is torn down mid-capture and the driver is left streaming into
+//     a queue nobody owns. TERM everywhere, KILL only as timeout(1)'s escalation.
+//   * The ladder must fire inside-out, so the stage that CAN reach python3 always
+//     acts first: howdy's own video timeout (9 s, its config) < timeout(1) TERM
+//     (11 s) < timeout(1) KILL (13 s) < this Timer (14 s). Invert it — a UI cap
+//     shorter than the kernel-side cap — and the UI kill orphans the camera
+//     holder, which the escalation then SIGKILLs mid-capture. That is exactly
+//     how the driver got wedged.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -16,12 +26,19 @@ Item {
     id: root
 
     property string user: Quickshell.env("USER") || ""
-    property int timeoutMs: 10000
+    // Last resort only: normally howdy exits on its own and timeout(1) is the
+    // backstop. See the ladder above before shortening this.
+    property int timeoutMs: 14000
 
     readonly property bool scanning: proc.running
 
+    // "no-match"     — howdy looked and did not recognize the face (its exit 11)
+    // "too-dark"     — every frame was below howdy's dark_threshold (exit 13)
+    // "unavailable"  — the backend could not compare at all: camera busy or
+    //                  wedged, missing model, bad config (exit 1 / 10 / 12 / …)
+    // "timeout"      — the whole chain hung past timeoutMs
     signal succeeded()
-    signal failed(string reason) // "no-match" | "timeout"
+    signal failed(string reason)
 
     // True while a teardown we initiated (abort or timeout) is in flight, so the
     // exited() it provokes does not turn into a signal nobody asked for.
@@ -31,26 +48,39 @@ Item {
     readonly property bool _mock: (Quickshell.env("MUGLOCK_MOCK") || "") !== ""
         && Quickshell.env("MUGLOCK_DEV") === "1"
 
-    // Every lifecycle event logs — post-incident forensics depend on it.
     function start(): void {
         if (proc.running)
             return;
         root._aborted = false;
         proc.command = root._mock
             ? ["bash", Quickshell.shellPath("../scripts/howdy-stub.sh")]
-            : ["sudo", "-n", "/usr/bin/timeout", "--signal=KILL", "12", "/usr/bin/python3", "/usr/lib/security/howdy/compare.py", root.user];
+            : ["sudo", "-n", "/usr/bin/timeout", "--signal=TERM", "--kill-after=2", "11",
+               "/usr/bin/python3", "/usr/lib/security/howdy/compare.py", root.user];
         proc.running = true;
         timeout.restart();
     }
 
     // Stop scanning without reporting anything (used when the session unlocks by
-    // password while a scan is still in flight).
+    // password while a scan is still in flight). TERM, never KILL: it is relayed
+    // down to python3, which then releases the camera on its way out.
     function abort(): void {
         if (!proc.running)
             return;
         root._aborted = true;
         timeout.stop();
-        proc.signal(9);
+        proc.signal(15);
+    }
+
+    // howdy's compare.py exit codes. Anything unrecognized is treated as a
+    // backend fault rather than a failed match: claiming "we looked and it
+    // wasn't you" when the camera never opened sends the user hunting for
+    // better lighting while the real problem is a dead device.
+    function _reasonFor(exitCode: int): string {
+        if (exitCode === 11)
+            return "no-match";
+        if (exitCode === 13)
+            return "too-dark";
+        return "unavailable";
     }
 
     Process {
@@ -62,7 +92,7 @@ Item {
             if (exitCode === 0)
                 root.succeeded();
             else
-                root.failed("no-match");
+                root.failed(root._reasonFor(exitCode));
         }
     }
 
@@ -70,8 +100,8 @@ Item {
         id: timeout
         interval: root.timeoutMs
         onTriggered: {
-            root._aborted = true; // the kill below must stay silent
-            proc.signal(9); // best effort: reaps sudo, timeout(1) reaps howdy
+            root._aborted = true; // the teardown below must stay silent
+            proc.signal(15); // relayed sudo -> timeout -> python3: clean release
             root.failed("timeout");
         }
     }

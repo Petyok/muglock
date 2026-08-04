@@ -10,8 +10,8 @@ import Quickshell
 ShellRoot {
     FaceScanner {
         // Harness-only override so the timeout case resolves in 3 s instead of
-        // the production 10 s. FaceScanner's own default stays 10000.
-        timeoutMs: 3000
+        // the production 14 s. FaceScanner's own default stays 10000.
+        timeoutMs: 4000
 
         onSucceeded: {
             console.log("MUGLOCK: succeeded");
