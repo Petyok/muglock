@@ -51,7 +51,7 @@ ShellRoot {
 
     Process {
         id: chirp
-        command: ["paplay", Quickshell.shellPath("../assets/chirp.ogg")]
+        command: ["paplay", Quickshell.shellPath("assets/chirp.ogg")]
     }
 
     // Liveness trace, only while the screen is actually locked. If muglock ever

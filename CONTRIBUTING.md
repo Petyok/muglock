@@ -58,6 +58,11 @@ the symlinked instance be the one you actually lock with.
   may ever block an authenticated unlock. There is a watchdog for a reason.
 - muglock never writes `/etc/pam.d/*`, and the sudoers drop-in stays exactly
   one command, validated with `visudo -cf`.
+- Anything the shell loads at runtime lives **inside `shell/`**. The installed
+  config is a symlink, and `Quickshell.shellPath()` resolves against the symlink,
+  so a `"../"` path silently points outside the config directory — that is how
+  the chirp and the background dither were both missing in production while every
+  test passed. `scripts/test-symlinked-config.sh` guards this now; run it.
 - QML API claims are verified against the installed qmltypes
   (`/usr/lib/qt6/qml/Quickshell/**/*.qmltypes`) — quickshell moves fast and
   guessed API names are the #1 source of broken PRs.

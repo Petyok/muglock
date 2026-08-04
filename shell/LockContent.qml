@@ -122,7 +122,7 @@ Item {
         // colour. Same reason hyprlock configs carry a `noise` value.
         Image {
             anchors.fill: parent
-            source: Quickshell.shellPath("../assets/noise.png")
+            source: Quickshell.shellPath("assets/noise.png")
             fillMode: Image.Tile
             smooth: false // no interpolation: the dither must stay pixel-exact
         }
