@@ -23,6 +23,7 @@ Item {
     // whoever howdy actually compared (both default to env USER).
     property alias scanPhase: plaque.phase
     property alias scanUser: plaque.user
+    property alias scanShake: plaque.shakeSeq
 
     focus: true
     Component.onCompleted: field.forceActiveFocus()
