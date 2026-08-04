@@ -57,6 +57,9 @@ Item {
             return;
         root._aborted = false;
         proc.command = root._mock
+            // Dev-only path, and it assumes the repo layout: reaching outside the
+            // config dir does not survive a symlinked install (see
+            // scripts/test-symlinked-config.sh). Mock mode is never used there.
             ? ["bash", Quickshell.shellPath("../scripts/howdy-stub.sh")]
             : ["sudo", "-n", "/usr/bin/timeout", "--signal=TERM", "--kill-after=2", "11",
                "/usr/bin/python3", "/usr/lib/security/howdy/compare.py", root.user];

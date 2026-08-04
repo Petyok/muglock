@@ -16,5 +16,5 @@ ffmpeg -y -v error \
 [0]afade=t=in:d=0.012,afade=t=out:st=0.10:d=0.04[a];\
 [1]adelay=110|110,afade=t=in:d=0.012,afade=t=out:st=0.22:d=0.18[b];\
 [a][b]amix=inputs=2:normalize=0,volume=${gain}" \
-  -c:a libvorbis assets/chirp.ogg
-echo "wrote assets/chirp.ogg"
+  -c:a libvorbis shell/assets/chirp.ogg
+echo "wrote shell/assets/chirp.ogg"

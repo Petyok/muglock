@@ -18,7 +18,7 @@ sha256sums=('SKIP')
 package() {
   cd "$srcdir/$pkgname-$pkgver"
   install -d "$pkgdir/usr/share/$pkgname"
-  cp -r shell assets "$pkgdir/usr/share/$pkgname/"
+  cp -r shell "$pkgdir/usr/share/$pkgname/"  # runtime assets live in shell/assets
   # install.sh resolves the repo from its own dirname, so it must sit next to shell/;
   # /usr/bin/muglock-install is a thin exec wrapper (a symlink would leave $0 in /usr/bin).
   install -Dm755 install.sh "$pkgdir/usr/share/$pkgname/install.sh"

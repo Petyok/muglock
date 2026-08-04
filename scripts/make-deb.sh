@@ -10,7 +10,7 @@ ver=$(sed -n 's/^pkgver=//p' PKGBUILD)
 stage=build/deb
 rm -rf "$stage"
 install -d "$stage/DEBIAN" "$stage/usr/share/muglock" "$stage/usr/bin"
-cp -r shell assets "$stage/usr/share/muglock/"
+cp -r shell "$stage/usr/share/muglock/"  # runtime assets live in shell/assets
 # install.sh resolves the repo from its own dirname, so it must sit NEXT TO shell/;
 # /usr/bin/muglock-install is a thin exec wrapper (a symlink would leave $0 in /usr/bin).
 install -Dm755 install.sh "$stage/usr/share/muglock/install.sh"

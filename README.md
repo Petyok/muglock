@@ -160,6 +160,7 @@ scripts/test-scanner.sh    # every outcome: match, no-match, unavailable, too-da
 scripts/test-ipc.sh        # lock + wake over qs ipc
 scripts/test-install.sh    # install.sh dry-run contract
 scripts/test-deb.sh        # .deb contents and PKGBUILD sanity
+scripts/test-symlinked-config.sh   # runs through a symlinked config, like a real install
 ```
 
 ## Hyprland: smooth unlock fade
