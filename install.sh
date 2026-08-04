@@ -113,9 +113,9 @@ step "5. Manual steps left for you (nothing is auto-edited)"
 say "Enroll your face:"
 say "  sudo howdy add"
 say "Add these two lines to the general{} block of ~/.config/hypridle.conf:"
-say '  lock_cmd = qs -c muglock ipc call muglock lock'
-say '  after_sleep_cmd = qs -c muglock ipc call muglock wake'
-say "Then reload hypridle and try: qs -c muglock ipc call muglock lock"
+say '  lock_cmd = qs -p ~/.config/quickshell/muglock ipc call muglock lock'
+say '  after_sleep_cmd = qs -p ~/.config/quickshell/muglock ipc call muglock wake'
+say "Then reload hypridle and try: qs -p ~/.config/quickshell/muglock ipc call muglock lock"
 
 [ "$DRY_RUN" -eq 1 ] && say $'\n(dry run — nothing above was executed)'
 exit 0

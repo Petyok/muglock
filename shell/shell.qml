@@ -3,8 +3,8 @@
 //   * the single scan phase every plaque binds to,
 //   * the IPC surface hypridle talks to.
 //
-//   qs -c muglock ipc call muglock lock   # engage the lock, start a scan
-//   qs -c muglock ipc call muglock wake   # re-scan after a wake, if locked
+//   qs -p ~/.config/quickshell/muglock ipc call muglock lock   # engage the lock, start a scan
+//   qs -p ~/.config/quickshell/muglock ipc call muglock wake   # re-scan after a wake, if locked
 //
 // MUGLOCK_DEV=1 keeps WlSessionLock instantiated but inert (`locked` is never
 // set) and shows a normal window instead, so the whole flow can be exercised
