@@ -37,13 +37,21 @@ say "distro ID: $distro"
 step "2. Dependencies (howdy, quickshell)"
 case "$distro" in
   arch|archarm|manjaro|endeavouros)
-    helper=""
-    for h in paru yay; do command -v "$h" >/dev/null && { helper=$h; break; }; done
-    if [ -n "$helper" ]; then
-      run "$helper" -S --needed howdy quickshell
+    # pacman -T lists deps not satisfied by any installed package or provider,
+    # so an installed howdy-bin/howdy-git correctly satisfies "howdy" here.
+    missing=$(pacman -T howdy quickshell || true)
+    if [ -z "$missing" ]; then
+      say "howdy and quickshell already present, nothing to install"
     else
-      say "No AUR helper found. Install manually:"
-      say "  paru -S --needed howdy quickshell"
+      helper=""
+      for h in paru yay; do command -v "$h" >/dev/null && { helper=$h; break; }; done
+      if [ -n "$helper" ]; then
+        # shellcheck disable=SC2086
+        run "$helper" -S --needed $missing
+      else
+        say "No AUR helper found. Install manually:"
+        say "  paru -S --needed $missing"
+      fi
     fi
     ;;
   debian|ubuntu|pop|linuxmint)
