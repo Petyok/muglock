@@ -65,22 +65,68 @@ ShellRoot {
         scanner.start();
     }
 
-    // Fade-to-desktop: a session-lock surface with alpha < 1 is blended with
-    // the session underneath by the compositor, so animating opacity to 0
-    // dissolves the lock screen into the desktop before the lock is dropped.
+    // True fade-to-desktop. ext-session-lock hides the session while locked,
+    // so fading the lock surface itself can only dissolve into the
+    // compositor's blank fill. Instead: map an overlay layer drawing the
+    // identical frame, drop the real lock behind it (pixel-identical swap the
+    // eye can't see), then dissolve the overlay over the live desktop.
     property real surfaceOpacity: 1
+    property bool fading: false
+
+    Variants {
+        model: (root.fading && !root.devMode) ? Quickshell.screens : []
+
+        PanelWindow {
+            required property var modelData
+            screen: modelData
+            WlrLayershell.layer: WlrLayer.Overlay
+            exclusionMode: ExclusionMode.Ignore
+            focusable: false
+            mask: Region {} // empty input region: clicks fall through to the desktop
+            color: "transparent"
+            anchors {
+                top: true
+                bottom: true
+                left: true
+                right: true
+            }
+
+            LockContent {
+                anchors.fill: parent
+                opacity: root.surfaceOpacity
+                scanPhase: "success" // freeze the goodbye frame
+                scanUser: scanner.user
+            }
+        }
+    }
 
     SequentialAnimation {
         id: fadeOut
+        ScriptAction {
+            script: root.fading = true
+        }
+        PauseAnimation {
+            duration: 60 // let the overlay map before the lock drops beneath it
+        }
+        ScriptAction {
+            script: {
+                if (!root.devMode)
+                    sessionLock.locked = false;
+                root.scanPhase = "idle";
+            }
+        }
         NumberAnimation {
             target: root
             property: "surfaceOpacity"
             to: 0
-            duration: 400
-            easing.type: Easing.InCubic
+            duration: 800
+            easing.type: Easing.OutCubic
         }
         ScriptAction {
-            script: root.finishUnlock()
+            script: {
+                root.fading = false;
+                root.surfaceOpacity = 1; // ready for the next lock
+            }
         }
     }
 
@@ -93,26 +139,16 @@ ShellRoot {
         fadeOut.start();
     }
 
-    function finishUnlock(): void {
-        root.scanPhase = "idle";
-        if (!root.devMode)
-            sessionLock.locked = false;
-        root.surfaceOpacity = 1; // ready for the next lock
-    }
-
     WlSessionLock {
         // NOT `lock`: that id would collide with IpcHandler's function lock().
         id: sessionLock
         locked: false
 
         WlSessionLockSurface {
-            // Covers the frame before LockContent paints; alpha follows the
-            // fade so the desktop shows through during the dissolve.
-            color: Qt.rgba(Theme.bg1.r, Theme.bg1.g, Theme.bg1.b, root.surfaceOpacity)
+            color: Theme.bg1 // covers the frame before LockContent paints
 
             LockContent {
                 anchors.fill: parent
-                opacity: root.surfaceOpacity
                 scanPhase: root.scanPhase
                 scanUser: scanner.user
                 onUnlockRequested: root.doUnlock() // PAM said yes
@@ -145,6 +181,7 @@ ShellRoot {
 
         function lock(): void {
             fadeOut.stop(); // a lock during the dissolve wins over the unlock
+            root.fading = false;
             root.surfaceOpacity = 1;
             if (!root.devMode)
                 sessionLock.locked = true;
