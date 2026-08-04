@@ -97,6 +97,18 @@ else
   run sudo install -o root -g root -m 0440 "$tmp" "$SUDOERS_FILE"
 fi
 
+# The drop-in is dead weight if /etc/sudoers never includes sudoers.d —
+# some setups ship the includedir line commented out.
+if [ "$DRY_RUN" -eq 0 ]; then
+  # Both '@includedir' (current) and '#includedir' (legacy directive, not a
+  # comment) count as active; '#@includedir' / '# includedir' do not.
+  if ! sudo grep -qE '^\s*(@includedir|#includedir)\s+/etc/sudoers\.d' /etc/sudoers; then
+    say "WARNING: /etc/sudoers does not appear to include /etc/sudoers.d"
+    say "         (no active '@includedir /etc/sudoers.d' line). The drop-in"
+    say "         will be ignored until you enable it via 'sudo visudo'."
+  fi
+fi
+
 step "5. Manual steps left for you (nothing is auto-edited)"
 say "Enroll your face:"
 say "  sudo howdy add"
