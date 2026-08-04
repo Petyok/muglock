@@ -77,7 +77,7 @@ ShellRoot {
     // that loses on slow frames and flashes the bare desktop.
     property int overlaysLive: 0
     onOverlaysLiveChanged: {
-        if (root.fading && !root.devMode && root.overlaysLive === Quickshell.screens.length)
+        if (root.fading && !root.devMode && root.overlaysLive >= Quickshell.screens.length)
             swapFrame.restart();
     }
 
@@ -123,10 +123,37 @@ ShellRoot {
         id: swapFrame
         interval: 32
         onTriggered: {
+            fadeWatchdog.stop();
             sessionLock.locked = false;
             root.scanPhase = "idle";
             fadeAnim.restart();
         }
+    }
+
+    // The dissolve is decoration; the unlock is the contract. If the overlay
+    // handoff has not happened shortly after an authenticated unlock started,
+    // drop the animation and open the door.
+    Timer {
+        id: fadeWatchdog
+        interval: 1500
+        onTriggered: {
+            if (root.fading && sessionLock.locked)
+                root.forceUnlock();
+        }
+    }
+
+    // Unlock with no ceremony. Used when the pretty path wedges or when a
+    // second authenticated unlock arrives mid-dissolve — animation state must
+    // never be able to hold the session hostage.
+    function forceUnlock(): void {
+        swapFrame.stop();
+        fadeAnim.stop(); // onStopped resets fading + opacity
+        fadeWatchdog.stop();
+        root.fading = false;
+        root.surfaceOpacity = 1;
+        root.scanPhase = "idle";
+        if (!root.devMode)
+            sessionLock.locked = false;
     }
 
     NumberAnimation {
@@ -145,14 +172,24 @@ ShellRoot {
     // The ONLY place that starts dropping the lock. Reachable from the
     // post-success timer and from PAM success, nowhere else.
     function doUnlock(): void {
-        if (root.fading)
+        if (root.fading) {
+            // A second authenticated unlock while a dissolve is (or claims to
+            // be) in flight: the user has proven who they are, let them out now.
+            root.forceUnlock();
             return;
+        }
         scanner.abort(); // releases the camera right away, before the fade
+        // Recount mapped overlays every cycle: a destroyed overlay is not
+        // guaranteed a farewell backingWindowVisible signal, and a stale
+        // count from the previous unlock would stall the handoff forever.
+        root.overlaysLive = 0;
         root.fading = true;
         if (root.devMode) {
             // No session lock to hand off in dev mode — dissolve the window content.
             root.scanPhase = "idle";
             fadeAnim.restart();
+        } else {
+            fadeWatchdog.restart();
         }
         // Real mode continues in onOverlaysLiveChanged once overlays are mapped.
     }
@@ -200,6 +237,7 @@ ShellRoot {
         function lock(): void {
             swapFrame.stop(); // a lock during the dissolve wins over the unlock
             fadeAnim.stop(); // onStopped resets fading + opacity
+            fadeWatchdog.stop();
             root.fading = false;
             root.surfaceOpacity = 1;
             if (!root.devMode)
