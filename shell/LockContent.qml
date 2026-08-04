@@ -236,8 +236,14 @@ Item {
 
                 Keys.onPressed: event => {
                     if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                        if (!pam.active && field.text.length > 0)
+                        if (pam.active) {
+                            event.accepted = true;
+                            return; // conversation already in flight
+                        }
+                        if (field.text.length > 0)
                             pam.start();
+                        else
+                            root.keyPressed(); // Enter on an empty field = scan again
                         event.accepted = true;
                     } else if (event.key === Qt.Key_Escape) {
                         // Panic hatch: abort a wedged PAM conversation and retype.
@@ -245,10 +251,11 @@ Item {
                             pam.abort();
                         field.text = "";
                         event.accepted = true;
-                    } else if (event.text === "" && field.text.length === 0) {
-                        // Modifier/arrow on an empty field = "look at me again".
-                        root.keyPressed();
                     }
+                    // No other key triggers a rescan. Input methods (fcitx5)
+                    // deliver composed printable keys with an empty event.text,
+                    // so any "non-text key" heuristic here restarts the camera
+                    // while the user is typing a password.
                 }
 
                 Text {
