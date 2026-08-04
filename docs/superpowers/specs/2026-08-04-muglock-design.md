@@ -59,8 +59,11 @@ LOCKED (screen woke up / ipc wake)
                    your password or press any key"; camera released
   FAILED --any key--> SCANNING (new attempt)
   * the password field is active in every state (PamContext), Enter → PAM
-  * display off (dpms) → scan aborted, camera off
 ```
+
+Note: aborting an in-flight scan on display-off (dpms) is out of scope for
+v1 — the 10 s scan time-box already bounds camera usage, and hypridle
+re-triggers `wake` on resume. Revisit if the camera LED bothers anyone.
 
 Animations: QML easing/spring (Behavior, NumberAnimation, scale+opacity);
 reference — mockup C chosen during brainstorming.
