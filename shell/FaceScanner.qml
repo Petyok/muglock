@@ -13,11 +13,15 @@
 //     the device is torn down mid-capture and the driver is left streaming into
 //     a queue nobody owns. TERM everywhere, KILL only as timeout(1)'s escalation.
 //   * The ladder must fire inside-out, so the stage that CAN reach python3 always
-//     acts first: howdy's own video timeout (9 s, its config) < timeout(1) TERM
-//     (11 s) < timeout(1) KILL (13 s) < this Timer (14 s). Invert it — a UI cap
-//     shorter than the kernel-side cap — and the UI kill orphans the camera
-//     holder, which the escalation then SIGKILLs mid-capture. That is exactly
-//     how the driver got wedged.
+//     acts first: howdy exits on its own (~8 s: ~2 s of python and camera startup
+//     plus its 6 s scan window, which it counts from the FIRST CAPTURED FRAME,
+//     not from exec) < timeout(1) TERM (11 s) < timeout(1) KILL (13 s) < this
+//     Timer (14 s). Invert it — a UI cap shorter than the kernel-side cap — and
+//     the UI kill orphans the camera holder, which the escalation then SIGKILLs
+//     mid-capture. That is exactly how the driver got wedged. Leave real headroom
+//     between howdy's own exit and the TERM: set its window to 9 s and startup
+//     pushes the total onto the cap, so every scan dies at 124 and reads as a
+//     fault instead of a plain "not recognized".
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -80,6 +84,13 @@ Item {
             return "no-match";
         if (exitCode === 13)
             return "too-dark";
+        // timeout(1) reports 124 when it had to TERM the command, 137 when the
+        // escalation SIGKILLed it. Both mean our own hard cap fired, which is a
+        // timeout — not a broken camera. Note howdy's own scan window is counted
+        // from the first captured frame, so it must be short enough that
+        // startup + window still lands well inside the cap; see the ladder above.
+        if (exitCode === 124 || exitCode === 137)
+            return "timeout";
         return "unavailable";
     }
 

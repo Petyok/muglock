@@ -32,8 +32,9 @@ password.
   worse than saying nothing.
 - Camera used only on wake, then released. The stop ladder runs inside-out so
   the stage that can actually reach the camera holder always acts first: howdy's
-  own scan window (9 s) → `timeout(1)` SIGTERM (11 s) → its SIGKILL escalation
-  (13 s) → the UI's last-resort cap (14 s). SIGTERM lets OpenCV release the
+  own exit (~8 s — a 6 s scan window counted from the first frame, plus startup)
+  → `timeout(1)` SIGTERM (11 s) → its SIGKILL escalation (13 s) → the UI's
+  last-resort cap (14 s). SIGTERM lets OpenCV release the
   device; a SIGKILL mid-capture is what leaves a webcam driver wedged.
 - Rescan on demand: Enter on an empty password field, a click on the plaque,
   or an IPC `wake` (lid open). Typing never restarts the camera.

@@ -15,9 +15,10 @@ check() { # mode, expected line
     grep -q "$2" "$log" || { echo "FAIL $1: expected '$2'"; cat "$log"; exit 1; }
 }
 
-check ok   "MUGLOCK: succeeded"
-check fail "MUGLOCK: failed no-match"
-check busy "MUGLOCK: failed unavailable"
-check dark "MUGLOCK: failed too-dark"
-check slow "MUGLOCK: failed timeout"
+check ok     "MUGLOCK: succeeded"
+check fail   "MUGLOCK: failed no-match"
+check busy   "MUGLOCK: failed unavailable"
+check dark   "MUGLOCK: failed too-dark"
+check capped "MUGLOCK: failed timeout"
+check slow   "MUGLOCK: failed timeout"
 echo PASS
