@@ -1,0 +1,4 @@
+singleton Theme Theme.qml
+LockContent 1.0 LockContent.qml
+FacePlaque 1.0 FacePlaque.qml
+FaceScanner 1.0 FaceScanner.qml
