@@ -92,8 +92,8 @@ Add to `~/.config/hypridle.conf`:
 
 ```ini
 general {
-    lock_cmd        = qs -c muglock ipc call muglock lock
-    after_sleep_cmd = qs -c muglock ipc call muglock wake
+    lock_cmd        = qs -p ~/.config/quickshell/muglock ipc call muglock lock
+    after_sleep_cmd = qs -p ~/.config/quickshell/muglock ipc call muglock wake
 }
 ```
 
@@ -105,10 +105,10 @@ The IPC contract:
 
 | Command | Effect |
 | --- | --- |
-| `qs -c muglock ipc call muglock lock` | Engage the lock and start a face scan |
-| `qs -c muglock ipc call muglock wake` | Restart the face scan on an already-locked screen |
+| `qs -p ~/.config/quickshell/muglock ipc call muglock lock` | Engage the lock and start a face scan |
+| `qs -p ~/.config/quickshell/muglock ipc call muglock wake` | Restart the face scan on an already-locked screen |
 
-Run the shell itself with `qs -c muglock` (from your Hyprland autostart).
+Run the shell itself with `qs -p ~/.config/quickshell/muglock` (from your Hyprland autostart).
 
 ## Mock and dev modes
 
