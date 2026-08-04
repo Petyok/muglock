@@ -23,14 +23,20 @@ Item {
     onPhaseChanged: if (root.phase === "success") springIn.restart()
 
     Row {
+        id: row
         anchors.centerIn: parent
-        spacing: 14
+        spacing: iconSlot.width > 0 ? 14 : 0
 
         // Icon slot: face outline while scanning, green check on success.
+        // No icon in the failed state — collapse instead of leaving a dead
+        // 38 px hole that pushes the text off center.
         Item {
-            width: 38
+            id: iconSlot
+            width: root.phase === "failed" ? 0 : 38
             height: 38
             anchors.verticalCenter: parent.verticalCenter
+
+            Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
             // ---- scanning: pulsing face outline + scanline sweep ----
             Item {
@@ -158,13 +164,16 @@ Item {
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            width: root.width - 38 - parent.spacing
+            // Natural width up to the plaque's limit, so a short caption sits
+            // centered next to the icon instead of leaving a fixed empty box.
+            width: Math.min(implicitWidth, root.width - iconSlot.width - row.spacing)
+            horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             font.family: Theme.fontFamily
             font.pixelSize: 15
             text: root.phase === "scanning" ? "Looking for you…"
                 : root.phase === "success" ? "Welcome back, " + root.user + "!"
-                : root.phase === "failed" ? "Didn't recognize you — type your password or press any key"
+                : root.phase === "failed" ? "Didn't recognize you — type your password, or press Enter to retry"
                 : ""
             color: root.phase === "success" ? Theme.success
                 : root.phase === "failed" ? Theme.dim
