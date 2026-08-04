@@ -88,6 +88,11 @@ ShellRoot {
             required property var modelData
             screen: modelData
             WlrLayershell.layer: WlrLayer.Overlay
+            // Distinct namespace so compositors can exempt this layer from
+            // their own fade animations (Hyprland: layerrule no_anim) —
+            // otherwise the compositor fades the overlay IN while the lock
+            // is already gone, which reads as a flash of bare desktop.
+            WlrLayershell.namespace: "muglock-fade"
             exclusionMode: ExclusionMode.Ignore
             focusable: false
             mask: Region {} // empty input region: clicks fall through to the desktop
