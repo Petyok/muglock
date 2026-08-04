@@ -2,6 +2,7 @@
 // FaceID plaque, and the password fallback (system PAM stack, never howdy).
 // Purely local: it knows nothing about WlSessionLock or the face scanner.
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pam
 import Quickshell.Hyprland
@@ -111,6 +112,19 @@ Item {
             GradientStop { position: 0.0; color: Theme.bg1 }
             GradientStop { position: 0.5; color: Theme.bg2 }
             GradientStop { position: 1.0; color: Theme.bg3 }
+        }
+
+        // The palette walks the blue channel through about 38 values across the
+        // whole screen height, so in 8-bit colour a clean gradient can only be
+        // ~24 px stripes — visible banding on the real display, not just in a
+        // recording. A tiled neutral dither (half the pixels a touch lighter,
+        // half a touch darker, mean zero) breaks the steps without shifting the
+        // colour. Same reason hyprlock configs carry a `noise` value.
+        Image {
+            anchors.fill: parent
+            source: Quickshell.shellPath("../assets/noise.png")
+            fillMode: Image.Tile
+            smooth: false // no interpolation: the dither must stay pixel-exact
         }
     }
 
