@@ -1,3 +1,4 @@
 *.deb
 build/
 .superpowers/
+.promo-drafts.md
