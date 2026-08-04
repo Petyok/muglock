@@ -65,13 +65,39 @@ ShellRoot {
         scanner.start();
     }
 
-    // The ONLY place that drops the lock. Reachable from the post-success timer
-    // and from PAM success, nowhere else.
+    // Fade-to-desktop: a session-lock surface with alpha < 1 is blended with
+    // the session underneath by the compositor, so animating opacity to 0
+    // dissolves the lock screen into the desktop before the lock is dropped.
+    property real surfaceOpacity: 1
+
+    SequentialAnimation {
+        id: fadeOut
+        NumberAnimation {
+            target: root
+            property: "surfaceOpacity"
+            to: 0
+            duration: 400
+            easing.type: Easing.InCubic
+        }
+        ScriptAction {
+            script: root.finishUnlock()
+        }
+    }
+
+    // The ONLY place that starts dropping the lock. Reachable from the
+    // post-success timer and from PAM success, nowhere else.
     function doUnlock(): void {
-        scanner.abort(); // releases the camera if a scan is still in flight
+        if (fadeOut.running)
+            return;
+        scanner.abort(); // releases the camera right away, before the fade
+        fadeOut.start();
+    }
+
+    function finishUnlock(): void {
         root.scanPhase = "idle";
         if (!root.devMode)
             sessionLock.locked = false;
+        root.surfaceOpacity = 1; // ready for the next lock
     }
 
     WlSessionLock {
@@ -80,10 +106,13 @@ ShellRoot {
         locked: false
 
         WlSessionLockSurface {
-            color: Theme.bg1 // covers the frame before LockContent paints
+            // Covers the frame before LockContent paints; alpha follows the
+            // fade so the desktop shows through during the dissolve.
+            color: Qt.rgba(Theme.bg1.r, Theme.bg1.g, Theme.bg1.b, root.surfaceOpacity)
 
             LockContent {
                 anchors.fill: parent
+                opacity: root.surfaceOpacity
                 scanPhase: root.scanPhase
                 scanUser: scanner.user
                 onUnlockRequested: root.doUnlock() // PAM said yes
@@ -102,6 +131,7 @@ ShellRoot {
 
             LockContent {
                 anchors.fill: parent
+                opacity: root.surfaceOpacity
                 scanPhase: root.scanPhase
                 scanUser: scanner.user
                 onUnlockRequested: root.doUnlock()
@@ -114,6 +144,8 @@ ShellRoot {
         target: "muglock"
 
         function lock(): void {
+            fadeOut.stop(); // a lock during the dissolve wins over the unlock
+            root.surfaceOpacity = 1;
             if (!root.devMode)
                 sessionLock.locked = true;
             root.beginScan();
