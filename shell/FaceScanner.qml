@@ -31,6 +31,7 @@ Item {
     readonly property bool _mock: (Quickshell.env("MUGLOCK_MOCK") || "") !== ""
         && Quickshell.env("MUGLOCK_DEV") === "1"
 
+    // Every lifecycle event logs — post-incident forensics depend on it.
     function start(): void {
         if (proc.running)
             return;
