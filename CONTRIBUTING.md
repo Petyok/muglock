@@ -39,6 +39,18 @@ doesn't produce duplicate PRs. If an **AI agent** leaves the claim comment, it
 must name the model and platform. (This repo is 100% vibe-coded; agents are
 first-class contributors here, but they follow the same rules as everyone.)
 
+## ⚠️ Never edit `shell/` while your screen is locked
+
+`install.sh` symlinks `~/.config/quickshell/muglock` straight at the repo, and
+quickshell hot-reloads on file change. Saving a file with a syntax error kills
+the running instance — and if that happens while the session is locked, the
+compositor keeps the session hidden (that is `ext-session-lock` behaving
+correctly), so you are looking at a black screen with nothing to type into. The
+way out is a tty (see README § Recovery), not a reboot.
+
+Develop against a copy in dev mode (`MUGLOCK_DEV=1 ... qs -p shell`), and let
+the symlinked instance be the one you actually lock with.
+
 ## Ground rules
 
 - **The password path is sacred.** Whatever you do to animations, scanning, or

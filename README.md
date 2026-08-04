@@ -190,6 +190,10 @@ loginctl unlock-session   # drop the lock outright
 Keep `hyprlock` installed. Your password works in muglock in every state, so this
 path is for crashes only.
 
+One way to cause such a crash yourself: `install.sh` symlinks the config at the
+repo and quickshell hot-reloads on file change, so saving a broken `shell/*.qml`
+kills the running instance. Don't edit the repo while the screen is locked.
+
 ### "Camera unavailable" and the camera LED never lights up
 
 Some webcam drivers — `facetimehd` on Apple hardware notably — are left in a
