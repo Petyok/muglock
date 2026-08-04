@@ -2,14 +2,18 @@
 // FaceID plaque, and the password fallback (system PAM stack, never howdy).
 // Purely local: it knows nothing about WlSessionLock or the face scanner.
 import QtQuick
+import Quickshell.Io
 import Quickshell.Services.Pam
+import Quickshell.Hyprland
 
 Item {
     id: root
 
     // PAM accepted the password, or the owner of this item decided we are done.
     signal unlockRequested()
-    // Any key that is not Enter. Integration uses it to retry a failed scan.
+    // A "look at me again" gesture: a non-text key on an empty password field,
+    // or a click on the plaque. Integration uses it to retry a failed scan.
+    // Printable keys never fire it — those are someone typing a password.
     signal keyPressed()
 
     // Mount point for extra plaque-area content, if anything ever needs it.
@@ -35,16 +39,66 @@ Item {
 
     PamContext {
         id: pam
-        // Plain system stack. muglock never writes /etc/pam.d.
+        // The same service hyprlock uses. muglock never writes /etc/pam.d.
         config: "login"
 
-        onResponseRequiredChanged: if (pam.responseRequired) pam.respond(field.text)
+        // Respond per *message*, never per responseRequired transition: the
+        // property stays true between conversations, so a -Changed handler
+        // fires exactly once and every later attempt deadlocks waiting for a
+        // response that nothing sends (locking the user out of the password
+        // path entirely).
+        onPamMessage: {
+            if (pam.responseRequired)
+                pam.respond(field.text);
+        }
         onCompleted: result => {
-            if (result === PamResult.Success) {
+            field.text = "";
+            if (result === PamResult.Success)
                 root.unlockRequested();
-            } else {
-                field.text = "";
+            else
                 shakeAnim.restart();
+        }
+        onError: error => {
+            field.text = "";
+            shakeAnim.restart();
+        }
+    }
+
+    // Current xkb layout as a short chip ("EN", "RU"). A password field with
+    // hidden echo plus a silently wrong layout is exactly how a correct
+    // password "doesn't work". Seeded by hyprctl, kept live by IPC events.
+    property string kbLayout: ""
+    function shortLayout(name) {
+        return name.trim().split(" ")[0].slice(0, 2).toUpperCase();
+    }
+
+    Process {
+        id: layoutProbe
+        command: ["hyprctl", "devices", "-j"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const keyboards = JSON.parse(text).keyboards;
+                    for (const kb of keyboards) {
+                        if (kb.main) {
+                            root.kbLayout = root.shortLayout(kb.active_keymap);
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    // Not Hyprland or no hyprctl: the chip just stays hidden.
+                }
+            }
+        }
+    }
+
+    Connections {
+        target: Hyprland
+        function onRawEvent(event) {
+            if (event.name === "activelayout") {
+                const parts = event.data.split(",");
+                root.kbLayout = root.shortLayout(parts[parts.length - 1]);
             }
         }
     }
@@ -111,6 +165,12 @@ Item {
                 width: parent.width
                 height: parent.height
             }
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.keyPressed() // click the plaque = rescan
+            }
         }
     }
 
@@ -146,11 +206,26 @@ Item {
                 NumberAnimation { target: pill; property: "shakeX"; to: 0; duration: 45 }
             }
 
+            // Layout chip: dim when EN, loud when anything else — the exact
+            // trap this guards against is typing a password in the wrong layout.
+            Text {
+                id: layoutChip
+                anchors.right: parent.right
+                anchors.rightMargin: 16
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.kbLayout.length > 0
+                text: root.kbLayout
+                color: root.kbLayout === "EN" ? Theme.dim : Theme.failText
+                font.family: Theme.fontFamily
+                font.pixelSize: 13
+                font.bold: root.kbLayout !== "EN"
+            }
+
             TextInput {
                 id: field
                 anchors.fill: parent
                 anchors.leftMargin: 18
-                anchors.rightMargin: 18
+                anchors.rightMargin: layoutChip.visible ? 46 : 18
                 verticalAlignment: TextInput.AlignVCenter
                 echoMode: TextInput.Password
                 readOnly: pam.active
@@ -161,9 +236,17 @@ Item {
 
                 Keys.onPressed: event => {
                     if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                        if (!pam.active && field.text.length > 0) pam.start();
+                        if (!pam.active && field.text.length > 0)
+                            pam.start();
                         event.accepted = true;
-                    } else {
+                    } else if (event.key === Qt.Key_Escape) {
+                        // Panic hatch: abort a wedged PAM conversation and retype.
+                        if (pam.active)
+                            pam.abort();
+                        field.text = "";
+                        event.accepted = true;
+                    } else if (event.text === "" && field.text.length === 0) {
+                        // Modifier/arrow on an empty field = "look at me again".
                         root.keyPressed();
                     }
                 }
