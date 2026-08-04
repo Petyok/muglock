@@ -11,7 +11,7 @@
 > keep having — stupid bugs LLMs can't see. Your password always works; use at
 > your own risk.
 
-![demo](assets/demo.gif)
+![demo](assets/demo.webp)
 
 ## What it is
 

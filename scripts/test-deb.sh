@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ./scripts/make-deb.sh
-deb=build/muglock_0.1.0_all.deb
+deb=build/muglock_$(sed -n 's/^pkgver=//p' PKGBUILD)_all.deb
 # Every dpkg-deb output is captured into a variable first, never piped into
 # `grep -q`: grep -q exits at the first match, which SIGPIPEs the tar dpkg-deb
 # forked, and `pipefail` turns that into a spurious failure (observed ~1 run in 10
