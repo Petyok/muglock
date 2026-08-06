@@ -320,21 +320,40 @@ ShellRoot {
         }
     }
 
+    // Engage the lock. `scan` is false when the caller knows the camera has
+    // nothing to look at — see lockNoScan below.
+    function engageLock(scan: bool): void {
+        console.log("MUGLOCK: ipc lock" + (scan ? "" : " (no scan)"));
+        swapFrame.stop(); // a lock during the dissolve wins over the unlock
+        fadeWatchdog.stop();
+        fadeAnim.stop();
+        root.overlayToRest();
+        root.overlaysLive = 0; // recount: destroys send no farewell signal
+        root.overlayArmed = true; // map overlays now, beneath the lock
+        settleTimer.restart(); // ...and give them time to actually paint
+        if (!root.devMode)
+            sessionLock.locked = true;
+        if (scan)
+            root.beginScan();
+        else
+            root.scanPhase = "idle"; // nothing to report until someone can see it
+    }
+
     IpcHandler {
         target: "muglock"
 
         function lock(): void {
-            console.log("MUGLOCK: ipc lock");
-            swapFrame.stop(); // a lock during the dissolve wins over the unlock
-            fadeWatchdog.stop();
-            fadeAnim.stop();
-            root.overlayToRest();
-            root.overlaysLive = 0; // recount: destroys send no farewell signal
-            root.overlayArmed = true; // map overlays now, beneath the lock
-            settleTimer.restart(); // ...and give them time to actually paint
-            if (!root.devMode)
-                sessionLock.locked = true;
-            root.beginScan();
+            root.engageLock(true);
+        }
+
+        // Lock without touching the camera. A closed lid points the camera at a
+        // keyboard: the scan burns several seconds of camera time and always
+        // ends on "too dark" — a message written for someone who can see the
+        // screen, shown to a shut panel. Whoever knows the lid is closed (here,
+        // the lid daemon that polls it) says so, instead of muglock guessing.
+        // The scan then happens on `wake`, when the panel is open again.
+        function lockNoScan(): void {
+            root.engageLock(false);
         }
 
         function wake(): void {

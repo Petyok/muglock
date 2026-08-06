@@ -21,6 +21,14 @@ All notable changes to muglock are documented in this file.
   rather than a timeout: it has no separate no-match code, and from where the
   user sits the two are the same event.
 
+### Added
+
+- `lockNoScan` IPC command: engages the lock without starting a scan, for callers
+  that know the camera has nothing to look at. A lid daemon locking a closed
+  laptop used to burn several seconds of camera time per close and land on "too
+  dark" — a message for someone who can see the screen, drawn on a shut panel.
+  The scan happens on the following `wake` instead.
+
 ### Fixed
 
 - **An unlock that went through the watchdog left the lock screen pinned over the
