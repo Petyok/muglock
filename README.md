@@ -16,7 +16,8 @@
 ## What it is
 
 A [quickshell](https://quickshell.org) lockscreen for Hyprland that looks at you
-through the webcam, recognizes your face with [howdy](https://github.com/boltgolt/howdy),
+through the webcam, recognizes your face with
+[howdy-next](https://codeberg.org/nathawat/howdy-next),
 plays a chirp and lets you in — or quietly steps aside so you can type your
 password.
 
@@ -30,12 +31,13 @@ password.
   really looked and did not match. A busy camera, a dark room or a broken config
   each say so, because sending someone to fix the lighting for a dead device is
   worse than saying nothing.
-- Camera used only on wake, then released. The stop ladder runs inside-out so
-  the stage that can actually reach the camera holder always acts first: howdy's
-  own exit (~8 s — a 6 s scan window counted from the first frame, plus startup)
-  → `timeout(1)` SIGTERM (11 s) → its SIGKILL escalation (13 s) → the UI's
-  last-resort cap (14 s). SIGTERM lets OpenCV release the
-  device; a SIGKILL mid-capture is what leaves a webcam driver wedged.
+- Camera used only on wake, then released. Native howdy-next removes Python
+  startup from the scan path. The stop ladder runs inside-out: howdy-next's
+   configured scan timeout plus camera/model startup headroom → `timeout(1)`
+   SIGTERM (11 s) → its SIGKILL escalation (13 s) → the UI's last-resort cap
+   (14 s). Keep `[video] timeout` at 8 seconds or less to leave startup headroom.
+   SIGTERM lets OpenCV release the device; a SIGKILL mid-capture is what leaves a
+   webcam driver wedged.
 - Rescan on demand: Enter on an empty password field, a click on the plaque,
   or an IPC `wake` (lid open). Typing never restarts the camera.
 - Keyboard layout chip in the password pill — loud when it's not EN, because a
@@ -55,7 +57,7 @@ muglock never touches `/etc/pam.d/*`. The only privileged file it writes is
 `/etc/sudoers.d/muglock`, containing exactly one command:
 
 ```
-<you> ALL=(root) NOPASSWD: /usr/bin/timeout --signal=TERM --kill-after=2 11 /usr/bin/python3 /usr/lib/security/howdy/compare.py <you>
+<you> ALL=(root) NOPASSWD: /usr/bin/timeout --signal=TERM --kill-after=2 11 /usr/lib/howdy/howdy-compare <you>
 ```
 
 validated with `visudo -cf` before installation. `timeout` is part of the granted
@@ -73,13 +75,16 @@ git clone https://github.com/Petyok/muglock && cd muglock
 makepkg -si
 ```
 
+Install howdy-next 3.x separately, for example with `paru -S howdy-next`, then
+enroll a model with `sudo howdy add`.
+
 ### .deb (Debian/Ubuntu)
 
 Grab `muglock_<version>_all.deb` from
 [Releases](https://github.com/Petyok/muglock/releases):
 
 ```bash
-sudo dpkg -i muglock_0.1.0_all.deb
+sudo dpkg -i muglock_0.1.1_all.deb
 ```
 
 `quickshell` and `howdy` are not in apt, so they are not declared as
@@ -102,7 +107,41 @@ drop-in, and *prints* (never auto-edits) the remaining manual steps.
 
 ```bash
 sudo howdy add
-sudo -n /usr/bin/timeout --signal=TERM --kill-after=2 11 /usr/bin/python3 /usr/lib/security/howdy/compare.py "$USER"   # must exit 0 with no password prompt
+sudo -n /usr/lib/howdy/howdy-compare "$USER"   # must exit 0 with no password prompt
+```
+
+### Migrating from howdy 2.x
+
+Install `howdy-next` 3.x and **re-enroll your face**. howdy-next keeps its models
+in its own location and format, so a machine that upgrades arrives with a working
+camera and no enrolled face. `howdy-compare` then exits **10** — muglock reports
+that as "No face enrolled", because calling it a camera fault is how a perfectly
+good webcam ends up looking broken (that is exactly what happened here):
+
+```bash
+sudo howdy clear
+sudo howdy add
+sudo howdy config
+```
+
+Review `[video]` settings such as `device_path`, `timeout`, and camera
+resolution, plus `[face] sface_threshold`, in `/etc/howdy/config.ini`. Note the
+recognition engine changed with 3.x: YuNet plus SFace (ONNX) instead of dlib, so
+the match knob is `[face] sface_threshold` (cosine distance) rather than howdy
+2.x's `certainty`, and it is worth re-checking `[snapshots] save_failed` — it
+writes a photo of your face on every miss.
+
+Do not copy an old 2.x config or model file across. Keep `[video] timeout` at 8
+seconds or less so camera and model startup still fit under muglock's 11-second
+kernel-side cap; howdy-next ships with 4.
+
+Measured on the reference machine (MacBook Air 2015, FaceTime HD, 1280x720):
+**1.88 s** per unlock over five consecutive runs, against 2.9-3.1 s on howdy 2.6.
+
+Verify the native scanner before locking:
+
+```bash
+sudo -n /usr/lib/howdy/howdy-compare "$USER"
 ```
 
 ## hypridle integration
@@ -136,7 +175,7 @@ zero privileges and no risk of locking yourself out:
 
 | Variable | Values | Effect |
 | --- | --- | --- |
-| `MUGLOCK_MOCK` | `ok`, `fail`, `busy`, `dark`, `slow` | Replaces the howdy compare.py call with `scripts/howdy-stub.sh`, which exits with *howdy's own* codes: match (0) / no match (11) / camera unavailable (1) / all frames too dark (13) / a hang that outlives the UI cap. **Only honoured together with `MUGLOCK_DEV=1`** — otherwise a stray `MUGLOCK_MOCK` in your real session would unlock the screen with no camera involved |
+| `MUGLOCK_MOCK` | `ok`, `fail`, `nomodel`, `busy`, `dark`, `capped`, `slow` | Replaces the native howdy-next compare helper with `scripts/howdy-stub.sh`, which preserves the scanner test contract: match (0) / scan window expired without a match (11) / no face enrolled (10) / camera unavailable (1) / all frames too dark (13) / outer timeout (124) / a hang that outlives the UI cap. **Only honoured together with `MUGLOCK_DEV=1`** — otherwise a stray `MUGLOCK_MOCK` in your real session would unlock the screen with no camera involved |
 | `MUGLOCK_DEV` | `1` | Renders the lockscreen in an ordinary floating window instead of engaging the session lock, and unlocks `MUGLOCK_MOCK` |
 
 ```bash

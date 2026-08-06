@@ -18,6 +18,7 @@ Item {
     readonly property string failedText:
         root.reason === "too-dark" ? "Too dark to see you — type your password"
         : root.reason === "unavailable" ? "Camera unavailable — type your password"
+        : root.reason === "no-model" ? "No face enrolled — run: sudo howdy add"
         : root.reason === "timeout" ? "Face scan timed out — type your password"
         : "Didn't recognize you — type your password, or press Enter to retry"
 

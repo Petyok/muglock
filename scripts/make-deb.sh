@@ -19,7 +19,7 @@ chmod 755 "$stage/usr/bin/muglock-install"
 install -Dm644 LICENSE "$stage/usr/share/doc/muglock/LICENSE"
 if [ -f README.md ]; then install -Dm644 README.md "$stage/usr/share/doc/muglock/README.md"; fi
 
-# quickshell and howdy are not in apt — postinst points at them instead of Depends.
+# quickshell and howdy-next are not in apt — postinst points at them instead of Depends.
 cat >"$stage/DEBIAN/control" <<EOF
 Package: muglock
 Version: $ver
@@ -30,9 +30,9 @@ Depends: bash
 Maintainer: petruha <petruha@users.noreply.github.com>
 Homepage: https://github.com/petruha/muglock
 Description: macOS-style FaceID screen unlock for Hyprland
- A quickshell QML lockscreen with an animated face-scan plaque, howdy face
+ A quickshell QML lockscreen with an animated face-scan plaque, howdy-next face
  recognition, a success chirp and a password fallback that always works.
- Needs quickshell (qs) and howdy, neither of which ships in apt — see postinst.
+ Needs quickshell (qs) and howdy-next, neither of which ships in apt — see postinst.
 EOF
 
 cat >"$stage/DEBIAN/postinst" <<'EOF'
@@ -41,7 +41,7 @@ set -e
 command -v qs >/dev/null 2>&1 || \
   echo "muglock: quickshell (qs) not found - build it from https://github.com/quickshell-mirror/quickshell"
 command -v howdy >/dev/null 2>&1 || \
-  echo "muglock: howdy not found - install from ppa:boltgolt/howdy, then run 'sudo howdy add'"
+  echo "muglock: howdy-next not found - install from https://codeberg.org/nathawat/howdy-next, then run 'sudo howdy add'"
 echo "muglock: enable it with 'muglock-install' (links /usr/share/muglock/shell into ~/.config/quickshell/muglock)"
 exit 0
 EOF

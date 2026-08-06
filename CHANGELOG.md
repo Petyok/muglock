@@ -4,6 +4,35 @@ All notable changes to muglock are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Scanner backend is howdy-next 3.x** (#1). Native `howdy-compare` replaces
+  howdy 2.x's Python `compare.py`, which removes interpreter startup from the
+  scan path: **1.88 s per unlock over five consecutive runs, against 2.9-3.1 s**
+  on the same machine and camera. The recognition engine is YuNet + SFace (ONNX)
+  rather than dlib, so the match knob is `[face] sface_threshold` instead of
+  `certainty`, and the sudoers line names the new helper.
+- **Upgrading requires re-enrolling your face.** howdy-next keeps models in its
+  own place, so an upgraded machine has a working camera and no enrolled face —
+  and `howdy-compare` reports that as exit 10. muglock now says "No face
+  enrolled" for it instead of "Camera unavailable"; the old mapping is precisely
+  how a healthy webcam came to look broken during this migration.
+- Exit 11 (howdy-next's scan window expiring) now reads as "didn't recognize you"
+  rather than a timeout: it has no separate no-match code, and from where the
+  user sits the two are the same event.
+
+### Fixed
+
+- **An unlock that went through the watchdog left the lock screen pinned over the
+  desktop.** `forceUnlock()` cleared `fading` but left `overlayArmed` to
+  `fadeAnim.onStopped` — and `stop()` emits nothing when the animation never ran,
+  which is exactly that path. The overlay stayed mapped at full opacity and, being
+  input-transparent, produced a working cursor under a frozen lock screen until the
+  daemon was killed from a tty. Overlay state is now reset unconditionally from
+  every exit, and readiness no longer trusts the mapped-window counter alone
+  (`backingWindowVisible` also toggles on dpms and across suspend, which is how it
+  read 0 for an overlay that had been up for minutes).
+
 ## [0.1.1] - 2026-08-05
 
 ### Fixed
