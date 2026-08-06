@@ -35,6 +35,26 @@ grep -q "MUGLOCK: phase success" "$log"  || { echo "FAIL: no success transition"
 grep -q "overlay at rest, armed=false" "$log" \
     || { echo "FAIL: overlay state not returned to rest after unlock"; cat "$log"; exit 1; }
 
+# Third scenario: lockNoScan must engage the lock without starting a scan. A
+# closed lid points the camera at a keyboard, so scanning there only ever ends on
+# "too dark" — shown to a panel nobody can see, after seconds of camera time.
+log3=$(mktemp)
+
+env MUGLOCK_DEV=1 MUGLOCK_MOCK=ok qs -p shell >"$log3" 2>&1 &
+pid3=$!
+sleep 2
+qs -p shell ipc call muglock lockNoScan >>"$log3" 2>&1 \
+    || { echo "FAIL: lockNoScan rejected"; cat "$log3"; exit 1; }
+sleep 3
+
+kill "$pid3"; wait "$pid3" 2>/dev/null || true
+pid3=""
+
+grep -q "MUGLOCK: ipc lock (no scan)" "$log3" \
+    || { echo "FAIL: lockNoScan did not engage"; cat "$log3"; exit 1; }
+grep -q "MUGLOCK: phase scanning" "$log3" \
+    && { echo "FAIL: lockNoScan started a scan anyway"; cat "$log3"; exit 1; }
+
 # Second scenario: a failing scan settles on the failed phase after ONE
 # process run — retries are howdy's internal frame loop, never a process
 # restart (each restart would pay python+camera startup with the camera off).

@@ -159,11 +159,17 @@ general {
 `on-timeout`); `after_sleep_cmd` re-scans your face when the machine comes back
 from suspend.
 
+If something in your setup locks the screen while the lid is **closed** — a lid
+daemon, for instance — have it call `lockNoScan` instead of `lock`. A closed lid
+aims the camera at the keyboard, so a scan there spends seconds of camera time
+and always ends on "too dark", displayed to a panel nobody can see.
+
 The IPC contract:
 
 | Command | Effect |
 | --- | --- |
 | `qs -p ~/.config/quickshell/muglock ipc call muglock lock` | Engage the lock and start a face scan |
+| `qs -p ~/.config/quickshell/muglock ipc call muglock lockNoScan` | Engage the lock but skip the scan — for a caller that knows the camera has nothing to look at, e.g. a lid daemon locking a closed laptop. The scan then happens on the next `wake`. |
 | `qs -p ~/.config/quickshell/muglock ipc call muglock wake` | Restart the face scan on an already-locked screen |
 
 Run the shell itself with `qs -p ~/.config/quickshell/muglock` (from your Hyprland autostart).
