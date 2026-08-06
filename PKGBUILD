@@ -2,13 +2,13 @@
 pkgname=muglock
 pkgver=0.1.1
 pkgrel=1
-pkgdesc="macOS-style FaceID screen unlock for Hyprland (quickshell lockscreen + howdy)"
+pkgdesc="macOS-style FaceID screen unlock for Hyprland (quickshell lockscreen + howdy-next)"
 arch=(any)
 url="https://github.com/petruha/muglock"
 license=(MIT)
 depends=(quickshell hypridle bash)
 optdepends=(
-  'howdy: face recognition backend (without it only the password path works)'
+  'howdy-next: face recognition backend (without it only the password path works)'
   'hyprlock: fallback lockscreen for recovery'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")

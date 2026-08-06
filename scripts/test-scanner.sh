@@ -16,8 +16,13 @@ check() { # mode, expected line
 }
 
 check ok     "MUGLOCK: succeeded"
+# 11 is howdy-next's scan window expiring, which from the user's side is simply
+# "it looked and did not recognize me" — not a clock problem.
 check fail   "MUGLOCK: failed no-match"
 check busy   "MUGLOCK: failed unavailable"
+# A fresh howdy-next install has no models, and calling that "camera unavailable"
+# is what made a working camera look broken during the 3.x migration.
+check nomodel "MUGLOCK: failed no-model"
 check dark   "MUGLOCK: failed too-dark"
 check capped "MUGLOCK: failed timeout"
 check slow   "MUGLOCK: failed timeout"

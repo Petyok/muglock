@@ -9,7 +9,7 @@ CONFIG_LINK="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/muglock"
 SUDOERS_FILE=/etc/sudoers.d/muglock
 # timeout(1) is inside the granted command on purpose: sudo cannot forward SIGKILL
 # to its child, so the hard cap on the camera has to be owned kernel-side.
-SUDOERS_LINE="$USER_NAME ALL=(root) NOPASSWD: /usr/bin/timeout --signal=TERM --kill-after=2 11 /usr/bin/python3 /usr/lib/security/howdy/compare.py $USER_NAME"
+SUDOERS_LINE="$USER_NAME ALL=(root) NOPASSWD: /usr/bin/timeout --signal=TERM --kill-after=2 11 /usr/lib/howdy/howdy-compare $USER_NAME"
 
 DRY_RUN=0
 case "${1:-}" in
@@ -56,12 +56,12 @@ case "$distro" in
     ;;
   debian|ubuntu|pop|linuxmint)
     say "No silent installs on this distro. Do these by hand:"
-    say "  sudo add-apt-repository ppa:boltgolt/howdy && sudo apt update && sudo apt install howdy"
+    say "  howdy-next has no apt package — install it from https://codeberg.org/nathawat/howdy-next"
     say "  quickshell has no apt package — build it: https://quickshell.org/docs/guide/install/"
     ;;
   *)
-    say "Unknown distro — install howdy and quickshell (>= 0.3) yourself:"
-    say "  howdy:      https://github.com/boltgolt/howdy"
+    say "Unknown distro — install howdy-next and quickshell (>= 0.3) yourself:"
+    say "  howdy-next: https://codeberg.org/nathawat/howdy-next"
     say "  quickshell: https://quickshell.org/docs/guide/install/"
     ;;
 esac
@@ -111,7 +111,9 @@ fi
 
 step "5. Manual steps left for you (nothing is auto-edited)"
 say "Enroll your face:"
-say "  sudo howdy add"
+say "  sudo howdy add   # howdy-next 3.x"
+say "Verify recognition without a password prompt:"
+say "  sudo -n /usr/lib/howdy/howdy-compare $USER_NAME"
 say "Add these two lines to the general{} block of ~/.config/hypridle.conf:"
 say '  lock_cmd = qs -p ~/.config/quickshell/muglock ipc call muglock lock'
 say '  after_sleep_cmd = qs -p ~/.config/quickshell/muglock ipc call muglock wake'
