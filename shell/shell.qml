@@ -122,9 +122,40 @@ ShellRoot {
     // once every screen's overlay is live — a timer here would be a guess
     // that loses on slow frames and flashes the bare desktop.
     property int overlaysLive: 0
-    onOverlaysLiveChanged: {
-        if (root.fading && !root.devMode && root.overlaysLive >= Quickshell.screens.length)
+
+    // Wall-clock proof that the armed overlays have had time to map and paint.
+    // The mapped counter alone cannot be trusted: it moves with
+    // backingWindowVisible, which also toggles on dpms and across suspend, so it
+    // can read 0 for an overlay that has been on screen for minutes. Observed
+    // exactly that after a resume — the handoff never fired and the unlock fell
+    // through to the watchdog.
+    property bool overlaySettled: false
+    readonly property bool overlayReady: root.overlayArmed
+        && (root.overlaysLive >= Quickshell.screens.length || root.overlaySettled)
+
+    Timer {
+        id: settleTimer
+        interval: 400
+        onTriggered: root.overlaySettled = true
+    }
+
+    onOverlayReadyChanged: {
+        if (root.fading && !root.devMode && root.overlayReady)
             swapFrame.restart();
+    }
+
+    // The one place that puts overlay state back to rest. Every exit calls it
+    // unconditionally — never via an animation signal, because fadeAnim.stop()
+    // emits nothing when the animation was never running, and that is precisely
+    // the watchdog path. Leaving overlayArmed set there pinned a fully opaque
+    // copy of the lock screen over the desktop, input-transparent, until the
+    // daemon was killed from a tty.
+    function overlayToRest(): void {
+        settleTimer.stop();
+        root.overlaySettled = false;
+        root.overlayArmed = false;
+        root.fading = false;
+        root.surfaceOpacity = 1; // ready for the next lock
     }
 
     Variants {
@@ -200,13 +231,13 @@ ShellRoot {
     function forceUnlock(): void {
         console.log("MUGLOCK: forceUnlock");
         swapFrame.stop();
-        fadeAnim.stop(); // onStopped resets fading + opacity
         fadeWatchdog.stop();
-        root.fading = false;
-        root.surfaceOpacity = 1;
+        fadeAnim.stop();
+        root.overlayToRest(); // unconditional: stop() may have emitted nothing
         root.scanPhase = "idle";
         if (!root.devMode)
             sessionLock.locked = false;
+        console.log("MUGLOCK: overlay at rest, armed=" + root.overlayArmed);
     }
 
     NumberAnimation {
@@ -217,17 +248,16 @@ ShellRoot {
         duration: 800
         easing.type: Easing.OutCubic
         onStopped: {
-            console.log("MUGLOCK: fade done");
-            root.fading = false;
-            root.overlayArmed = false;
-            root.surfaceOpacity = 1; // ready for the next lock
+            root.overlayToRest();
+            console.log("MUGLOCK: fade done, overlay at rest, armed=" + root.overlayArmed);
         }
     }
 
     // The ONLY place that starts dropping the lock. Reachable from the
     // post-success timer and from PAM success, nowhere else.
     function doUnlock(): void {
-        console.log("MUGLOCK: doUnlock fading=" + root.fading + " overlaysLive=" + root.overlaysLive + " locked=" + sessionLock.locked);
+        console.log("MUGLOCK: doUnlock fading=" + root.fading + " overlaysLive=" + root.overlaysLive
+            + " ready=" + root.overlayReady + " locked=" + sessionLock.locked);
         if (root.fading) {
             // A second authenticated unlock while a dissolve is (or claims to
             // be) in flight: the user has proven who they are, let them out now.
@@ -242,10 +272,10 @@ ShellRoot {
             fadeAnim.restart();
         } else {
             fadeWatchdog.restart();
-            if (root.overlaysLive >= Quickshell.screens.length)
+            if (root.overlayReady)
                 swapFrame.restart(); // armed since lock() — already painted
-            // else: onOverlaysLiveChanged completes the handoff once mapped
-            // (cold-start edge), and the watchdog covers everything else.
+            // else: onOverlayReadyChanged completes the handoff once the
+            // overlays are up, and the watchdog covers everything else.
         }
     }
 
@@ -296,12 +326,12 @@ ShellRoot {
         function lock(): void {
             console.log("MUGLOCK: ipc lock");
             swapFrame.stop(); // a lock during the dissolve wins over the unlock
-            fadeAnim.stop(); // onStopped resets fading + opacity + armed
             fadeWatchdog.stop();
-            root.fading = false;
-            root.surfaceOpacity = 1;
+            fadeAnim.stop();
+            root.overlayToRest();
             root.overlaysLive = 0; // recount: destroys send no farewell signal
             root.overlayArmed = true; // map overlays now, beneath the lock
+            settleTimer.restart(); // ...and give them time to actually paint
             if (!root.devMode)
                 sessionLock.locked = true;
             root.beginScan();

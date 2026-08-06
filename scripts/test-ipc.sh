@@ -28,6 +28,12 @@ pid=""
 
 grep -q "MUGLOCK: phase scanning" "$log" || { echo "FAIL: no scan start"; cat "$log"; exit 1; }
 grep -q "MUGLOCK: phase success" "$log"  || { echo "FAIL: no success transition"; cat "$log"; exit 1; }
+# Overlay state must be back at rest after every unlock. It is reset explicitly
+# on each exit rather than from an animation signal: fadeAnim.stop() emits
+# nothing when the animation never ran (the watchdog path), and that once left a
+# fully opaque overlay pinned over the desktop until the daemon was killed.
+grep -q "overlay at rest, armed=false" "$log" \
+    || { echo "FAIL: overlay state not returned to rest after unlock"; cat "$log"; exit 1; }
 
 # Second scenario: a failing scan settles on the failed phase after ONE
 # process run — retries are howdy's internal frame loop, never a process
