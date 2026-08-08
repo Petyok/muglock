@@ -272,13 +272,14 @@ Nothing else was modified — no PAM files, no compositor config.
 
 ## Model credits
 
-Built end-to-end by Claude models in one long dialogue with a human — spec,
+Built end-to-end by Claude and OpenAI models in multiple sessions with a human — spec,
 plan, code, tests, reviews, this README, and the release. Models with commits,
 reviews, or blocked merges to their name, in order of appearance:
 
 - Fable 5 — orchestration, design, integration debugging, docs
 - Sonnet 5 — adversarial plan validation, sanity and seam checks
 - Opus 5 — parallel builders, integration, code review, fix rounds
+- Luna 5.6 — Review, design, sanity validation
 
 The human contributed the idea, the taste, the face, and the swearing.
 
