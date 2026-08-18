@@ -1,6 +1,6 @@
 # Maintainer: petruha <petruha@users.noreply.github.com>
 pkgname=muglock
-pkgver=0.1.1
+pkgver=0.2.0
 pkgrel=1
 pkgdesc="macOS-style FaceID screen unlock for Hyprland (quickshell lockscreen + howdy-next)"
 arch=(any)
