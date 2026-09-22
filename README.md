@@ -27,6 +27,8 @@ password.
 - Animated FaceID plaque: pulsing face icon + scanline while scanning, spring
   checkmark and a chirp on success, a calm hint on failure.
 - Password fallback via PAM (`PamContext`) — active in every state, always.
+- Speaker icon by the date: muted or not, click to toggle — the chirp is only
+  as quiet as you left the desktop.
 - Honest failure messages: "didn't recognize you" is only ever shown when howdy
   really looked and did not match. A busy camera, a dark room or a broken config
   each say so, because sending someone to fix the lighting for a dead device is

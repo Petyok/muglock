@@ -2,6 +2,13 @@
 
 All notable changes to muglock are documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Speaker icon next to the date shows whether the default sink is muted, so you
+  know before unlocking whether the chirp will be heard. Click toggles mute.
+
 ## [0.2.0] - 2026-08-18
 
 ### Changed

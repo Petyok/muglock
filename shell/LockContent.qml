@@ -5,6 +5,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pam
+import Quickshell.Services.Pipewire
 import Quickshell.Hyprland
 
 Item {
@@ -39,6 +40,9 @@ Item {
         triggeredOnStart: true
         onTriggered: root.now = new Date()
     }
+
+    // Without a tracker the sink's audio properties never populate.
+    PwObjectTracker { objects: [Pipewire.defaultAudioSink] }
 
     PamContext {
         id: pam
@@ -158,12 +162,36 @@ Item {
             }
         }
 
-        Text {
+        Row {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: Qt.formatDate(root.now, "ddd dd MMM")
-            color: Theme.dim
-            font.family: Theme.fontFamily
-            font.pixelSize: 20
+            spacing: 12
+
+            Text {
+                text: Qt.formatDate(root.now, "ddd dd MMM")
+                color: Theme.dim
+                font.family: Theme.fontFamily
+                font.pixelSize: 20
+            }
+
+            // Default sink mute state. The success chirp plays at whatever
+            // volume the desktop left behind, so say up front whether it will
+            // be heard; click toggles mute before the face is even scanned.
+            Text {
+                id: muteIcon
+                readonly property var audio: Pipewire.defaultAudioSink?.audio ?? null
+                visible: audio !== null
+                anchors.verticalCenter: parent.verticalCenter
+                text: audio?.muted ? "\u{F075F}" : "\u{F057E}"
+                color: audio?.muted ? Theme.dim : Theme.text
+                font.family: Theme.fontFamily
+                font.pixelSize: 20
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: if (muteIcon.audio) muteIcon.audio.muted = !muteIcon.audio.muted
+                }
+            }
         }
 
         Item { width: 1; height: 28 }
