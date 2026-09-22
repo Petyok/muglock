@@ -2,6 +2,15 @@
 
 All notable changes to muglock are documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- Faster hand-off after a face match: the pause on the green check is 200 ms
+  (was 500) and the dissolve to the desktop is 500 ms (was 800). The check keeps
+  animating on the fade overlay and the chirp is its own process, so neither is
+  cut short. About 0.6 s less per unlock.
+
 ## [0.2.1] - 2026-09-23
 
 ### Added

@@ -92,10 +92,12 @@ ShellRoot {
         }
     }
 
-    // Lets the success spring and the chirp play out before the screen vanishes.
+    // Long enough for the green check to register. The spring keeps playing on
+    // the overlay through the dissolve (its plaque holds "success" while fading)
+    // and the chirp is its own process, so neither needs the full 350/410 ms here.
     Timer {
         id: unlockDelay
-        interval: 500
+        interval: 200
         onTriggered: root.doUnlock()
     }
 
@@ -245,7 +247,7 @@ ShellRoot {
         target: root
         property: "surfaceOpacity"
         to: 0
-        duration: 800
+        duration: 500 // OutCubic front-loads it: ~90% gone by half-way
         easing.type: Easing.OutCubic
         onStopped: {
             root.overlayToRest();
