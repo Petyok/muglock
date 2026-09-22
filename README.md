@@ -86,7 +86,7 @@ Grab `muglock_<version>_all.deb` from
 [Releases](https://github.com/Petyok/muglock/releases):
 
 ```bash
-sudo dpkg -i muglock_0.2.0_all.deb
+sudo dpkg -i muglock_0.2.1_all.deb
 ```
 
 `quickshell` and `howdy` are not in apt, so they are not declared as
